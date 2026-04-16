@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="theme-color" content="#6366f1"/>
+  <link rel="manifest" href="manifest.json"/>
+  <title>Money Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a; color: #e2e8f0;
+      min-height: 100dvh; padding: 20px 16px 100px;
+    }
+    h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 20px; color: #a5b4fc; }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .split { grid-template-columns: 1fr; } }
+
+    .panel-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
+
+    .balance-card {
+      border-radius: 14px; padding: 16px;
+      margin-bottom: 14px; text-align: center;
+    }
+    .balance-card.spending { background: linear-gradient(135deg, #b91c1c, #f87171); }
+    .balance-card.saving   { background: linear-gradient(135deg, #166534, #4ade80); }
+    .balance-card .label { font-size: 0.78rem; opacity: 0.85; margin-bottom: 4px; }
+    .balance-card .amount { font-size: 1.8rem; font-weight: 800; }
+
+    .form-card { background: #1e293b; border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+    .form-row { display: flex; flex-direction: column; gap: 8px; }
+    input, textarea, select {
+      background: #0f172a; border: 1px solid #334155;
+      border-radius: 10px; color: #e2e8f0;
+      font-size: 0.9rem; padding: 10px 12px;
+      width: 100%; outline: none; font-family: inherit;
+    }
+    input:focus, textarea:focus { border-color: #6366f1; }
+    textarea { resize: vertical; min-height: 60px; }
+    button {
+      border: none; border-radius: 10px; cursor: pointer;
+      font-size: 0.9rem; font-weight: 600; padding: 11px;
+    }
+    .btn-spending { background: #7f1d1d; color: #f87171; }
+    .btn-saving   { background: #166534; color: #4ade80; }
+
+    .section-header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 10px;
+    }
+    .section-header span { font-size: 0.85rem; color: #cbd5e1; font-weight: 600; }
+    .clear-btn {
+      background: none; border: 1px solid #334155;
+      color: #94a3b8; font-size: 0.72rem;
+      padding: 4px 8px; border-radius: 8px; cursor: pointer;
+    }
+    .tx-list { display: flex; flex-direction: column; gap: 8px; }
+    .tx-item {
+      background: #1e293b; border-radius: 12px;
+      padding: 12px 14px; display: flex;
+      justify-content: space-between; align-items: flex-start;
+    }
+    .tx-desc { font-size: 0.88rem; font-weight: 500; }
+    .tx-note { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
+    .tx-date { font-size: 0.7rem; color: #64748b; margin-top: 2px; }
+    .tx-amount { font-size: 0.95rem; font-weight: 700; white-space: nowrap; }
+    .tx-amount.neg { color: #f87171; }
+    .tx-amount.pos { color: #4ade80; }
+    .tx-delete {
+      background: none; border: none; color: #475569;
+      font-size: 1rem; cursor: pointer; padding: 0 0 0 10px;
+    }
+    .empty { text-align: center; color: #475569; font-size: 0.85rem; padding: 24px 0; }
+
+    /* Floating button */
+    #fab {
+      position: fixed; bottom: 24px; right: 20px;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff; font-size: 1.4rem;
+      border: none; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+
+    /* Fullscreen overlay */
+    #overview-overlay {
+      display: none; position: fixed; inset: 0;
+      background: #0f172a; z-index: 200;
+      overflow-y: auto; padding: 24px 20px 40px;
+    }
+    #overview-overlay.open { display: block; }
+    .ov-close {
+      background: #1e293b; border: none; border-radius: 10px;
+      color: #94a3b8; font-size: 0.85rem; font-weight: 600;
+      padding: 8px 16px; cursor: pointer; margin-bottom: 20px;
+    }
+    .ov-header { font-size: 1.3rem; font-weight: 800; color: #a5b4fc; margin-bottom: 20px; }
+    .ov-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+    .ov-stat { background: #1e293b; border-radius: 12px; padding: 14px; text-align: center; }
+    .ov-stat .label { font-size: 0.72rem; color: #94a3b8; margin-bottom: 4px; }
+    .ov-stat .val { font-size: 1.1rem; font-weight: 700; }
+    .chart-wrap { background: #1e293b; border-radius: 16px; padding: 16px; margin-bottom: 24px; }
+    .chart-wrap h3 { font-size: 0.95rem; color: #cbd5e1; margin-bottom: 14px; }
+    canvas { width: 100% !important; display: block; }
+  </style>
+</head>
+<body>
+
+  <h1>💰 Money Tracker</h1>
+
+  <div class="split">
+    <!-- SPENDING -->
+    <div>
+      <div class="panel-title">🧾 Monthly Bills</div>
+      <div class="balance-card spending">
+        <div class="label">Total Bills</div>
+        <div class="amount" id="spending-total">$0.00</div>
+      </div>
+      <div class="form-card">
+        <div class="form-row">
+          <input id="sp-name" type="text" placeholder="Bill name (e.g. Rent, Netflix)"/>
+          <input id="sp-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
+          <textarea id="sp-note" placeholder="Note (optional)"></textarea>
+          <button class="btn-spending" onclick="addSpending()">+ Add Bill</button>
+        </div>
+      </div>
+      <div class="section-header">
+        <span>Bills</span>
+        <button class="clear-btn" onclick="clearSpending()">Clear All</button>
+      </div>
+      <div class="tx-list" id="spending-list"></div>
+    </div>
+
+    <!-- SAVING -->
+    <div>
+      <div class="panel-title">💰 Bi-Weekly Income</div>
+      <div class="balance-card saving">
+        <div class="label">Total Income</div>
+        <div class="amount" id="saving-total">$0.00</div>
+      </div>
+      <div class="form-card">
+        <div class="form-row">
+          <input id="sv-job" type="text" placeholder="Job income (e.g. Main Job, Side Job)"/>
+          <input id="sv-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
+          <button class="btn-saving" onclick="addSaving()">+ Add Income</button>
+        </div>
+      </div>
+      <div class="section-header">
+        <span>Income</span>
+        <button class="clear-btn" onclick="clearSaving()">Clear All</button>
+      </div>
+      <div class="tx-list" id="saving-list"></div>
+    </div>
+  </div>
+
+  <!-- PAYCHECK CALCULATOR -->
+  <div style="margin-top:28px">
+    <div class="panel-title">💵 Bi-Weekly Paycheck Calculator</div>
+    <div class="form-card">
+      <div class="form-row">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <input id="pc-hours" type="number" placeholder="Total hours worked" min="0" step="0.5"/>
+          <input id="pc-rate"  type="number" placeholder="Pay rate ($/hr)" min="0" step="0.01"/>
+        </div>
+        <button style="background:#1e40af;color:#93c5fd;padding:11px" onclick="calcPaycheck()">Calculate</button>
+      </div>
+      <div id="pc-result" style="display:none;margin-top:14px;background:#0f172a;border-radius:12px;padding:16px">
+        <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:4px">Bi-Weekly Gross Pay</div>
+        <div id="pc-gross" style="font-size:2.2rem;font-weight:800;color:#93c5fd;margin-bottom:12px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:0.78rem;color:#64748b">
+          <div>Weekly<br><span id="pc-weekly" style="color:#e2e8f0;font-weight:700;font-size:0.95rem"></span></div>
+          <div>Daily (5d)<br><span id="pc-daily" style="color:#e2e8f0;font-weight:700;font-size:0.95rem"></span></div>
+          <div>Annual Est.<br><span id="pc-annual" style="color:#e2e8f0;font-weight:700;font-size:0.95rem"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating overview button -->
+  <button id="fab" onclick="openOverview()" title="Overview">📊</button>
+
+  <!-- Fullscreen Overview -->
+  <div id="overview-overlay">
+    <button class="ov-close" onclick="closeOverview()">✕ Close</button>
+    <div class="ov-header">📊 Overview</div>
+    <div class="ov-stats">
+      <div class="ov-stat"><div class="label">Total Saved</div><div class="val" id="ov-saved" style="color:#4ade80">$0.00</div></div>
+      <div class="ov-stat"><div class="label">Total Spent</div><div class="val" id="ov-spent" style="color:#f87171">$0.00</div></div>
+      <div class="ov-stat"><div class="label">Net Balance</div><div class="val" id="ov-net">$0.00</div></div>
+    </div>
+    <div class="chart-wrap">
+      <h3>Spending vs Saving</h3>
+      <canvas id="bar-chart" height="220"></canvas>
+    </div>
+    <div class="chart-wrap">
+      <h3>Net Balance Over Time</h3>
+      <canvas id="line-chart" height="180"></canvas>
+    </div>
+  </div>
+
+  <script>
+    let spending  = JSON.parse(localStorage.getItem('mt_spending')  || '[]');
+    let saving    = JSON.parse(localStorage.getItem('mt_saving')    || '[]');
+
+    function fmt(n) { return '$' + Math.abs(n).toFixed(2); }
+    function today() { return new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+
+    // --- SPENDING ---
+    function renderSpending() {
+      const total = spending.reduce((s, t) => s + t.amount, 0);
+      document.getElementById('spending-total').textContent = fmt(total);
+      const list = document.getElementById('spending-list');
+      if (!spending.length) { list.innerHTML = '<div class="empty">No expenses yet</div>'; return; }
+      list.innerHTML = [...spending].reverse().map((t, ri) => {
+        const i = spending.length - 1 - ri;
+        return `<div class="tx-item">
+          <div style="flex:1">
+            <div class="tx-desc">${t.desc}</div>
+            ${t.note ? `<div class="tx-note">${t.note.replace(/</g,'&lt;')}</div>` : ''}
+            <div class="tx-date">${t.date}</div>
+          </div>
+          <div style="display:flex;align-items:center">
+            <span class="tx-amount neg">−${fmt(t.amount)}</span>
+            <button class="tx-delete" onclick="deleteSpending(${i})">✕</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    function addSpending() {
+      const name = document.getElementById('sp-name').value.trim();
+      const amount = parseFloat(document.getElementById('sp-amount').value);
+      const note = document.getElementById('sp-note').value.trim();
+      if (!name || isNaN(amount) || amount <= 0) return;
+      spending.push({ desc: name, amount, note, date: today() });
+      localStorage.setItem('mt_spending', JSON.stringify(spending));
+      renderSpending();
+      document.getElementById('sp-name').value = '';
+      document.getElementById('sp-amount').value = '';
+      document.getElementById('sp-note').value = '';
+    }
+    function deleteSpending(i) {
+      spending.splice(i, 1);
+      localStorage.setItem('mt_spending', JSON.stringify(spending));
+      renderSpending();
+    }
+    function clearSpending() {
+      if (!confirm('Clear all expenses?')) return;
+      spending = []; localStorage.setItem('mt_spending', JSON.stringify(spending)); renderSpending();
+    }
+
+    // --- SAVING ---
+    function renderSaving() {
+      const total = saving.reduce((s, t) => s + t.amount, 0);
+      document.getElementById('saving-total').textContent = fmt(total);
+      const list = document.getElementById('saving-list');
+      if (!saving.length) { list.innerHTML = '<div class="empty">No savings yet</div>'; return; }
+      list.innerHTML = [...saving].reverse().map((t, ri) => {
+        const i = saving.length - 1 - ri;
+        return `<div class="tx-item">
+          <div style="flex:1">
+            <div class="tx-desc">${t.desc}</div>
+            ${t.note ? `<div class="tx-note">${t.note.replace(/</g,'&lt;')}</div>` : ''}
+            <div class="tx-date">${t.date}</div>
+          </div>
+          <div style="display:flex;align-items:center">
+            <span class="tx-amount pos">+${fmt(t.amount)}</span>
+            <button class="tx-delete" onclick="deleteSaving(${i})">✕</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    function addSaving() {
+      const job = document.getElementById('sv-job').value.trim();
+      const amount = parseFloat(document.getElementById('sv-amount').value);
+      if (!job || isNaN(amount) || amount <= 0) return;
+      saving.push({ desc: job, amount, note: '', date: today() });
+      localStorage.setItem('mt_saving', JSON.stringify(saving));
+      renderSaving();
+      document.getElementById('sv-job').value = '';
+      document.getElementById('sv-amount').value = '';
+    }
+    function deleteSaving(i) {
+      saving.splice(i, 1);
+      localStorage.setItem('mt_saving', JSON.stringify(saving));
+      renderSaving();
+    }
+    function clearSaving() {
+      if (!confirm('Clear all savings?')) return;
+      saving = []; localStorage.setItem('mt_saving', JSON.stringify(saving)); renderSaving();
+    }
+
+    // --- PAYCHECK CALCULATOR ---
+    function calcPaycheck() {
+      const hours = parseFloat(document.getElementById('pc-hours').value);
+      const rate  = parseFloat(document.getElementById('pc-rate').value);
+      if (isNaN(hours) || isNaN(rate) || hours <= 0 || rate <= 0) return;
+      const gross  = hours * rate;
+      const daily  = gross / 14;
+      const annual = gross * 26;
+      document.getElementById('pc-gross').textContent  = '$' + gross.toFixed(2);
+      document.getElementById('pc-weekly').textContent = '$' + (gross / 2).toFixed(2);
+      document.getElementById('pc-daily').textContent  = '$' + daily.toFixed(2);
+      document.getElementById('pc-annual').textContent = '$' + annual.toFixed(2);
+      document.getElementById('pc-result').style.display = 'block';
+    }
+
+    // --- OVERVIEW ---
+    function openOverview() {
+      document.getElementById('overview-overlay').classList.add('open');
+      drawCharts();
+    }
+    function closeOverview() {
+      document.getElementById('overview-overlay').classList.remove('open');
+    }
+    function drawCharts() {
+      const totalSaved = saving.reduce((s, t) => s + t.amount, 0);
+      const totalSpent = spending.reduce((s, t) => s + t.amount, 0);
+      const net = totalSaved - totalSpent;
+      document.getElementById('ov-saved').textContent = fmt(totalSaved);
+      document.getElementById('ov-spent').textContent = fmt(totalSpent);
+      const netEl = document.getElementById('ov-net');
+      netEl.textContent = (net < 0 ? '-' : '') + fmt(net);
+      netEl.style.color = net < 0 ? '#f87171' : '#4ade80';
+      drawBar(totalSaved, totalSpent);
+      drawLine();
+    }
+    function drawBar(totalSaved, totalSpent) {
+      const canvas = document.getElementById('bar-chart');
+      const dpr = devicePixelRatio || 1;
+      const W = canvas.parentElement.clientWidth - 32, H = 220;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+      const pad = { top: 24, bottom: 40, left: 54, right: 20 };
+      const maxVal = Math.max(totalSaved, totalSpent, 1);
+      const chartH = H - pad.top - pad.bottom;
+      const barW = Math.min(80, (W - pad.left - pad.right) / 3);
+      const gap = (W - pad.left - pad.right - barW * 2) / 3;
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#64748b'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+      [0, 0.25, 0.5, 0.75, 1].forEach(f => {
+        const y = pad.top + chartH * (1 - f);
+        ctx.fillText('$' + (maxVal * f).toFixed(0), pad.left - 6, y + 4);
+        ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+      });
+      [{ label: 'Saved', val: totalSaved, color: '#4ade80', x: pad.left + gap },
+       { label: 'Spent', val: totalSpent, color: '#f87171', x: pad.left + gap * 2 + barW }
+      ].forEach(b => {
+        const bH = Math.max((b.val / maxVal) * chartH, b.val > 0 ? 2 : 0);
+        const y = pad.top + chartH - bH;
+        ctx.fillStyle = b.color;
+        ctx.beginPath(); ctx.roundRect(b.x, y, barW, bH, [6,6,0,0]); ctx.fill();
+        ctx.fillStyle = b.color; ctx.textAlign = 'center'; ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(fmt(b.val), b.x + barW / 2, Math.max(y - 6, pad.top + 12));
+        ctx.fillStyle = '#94a3b8'; ctx.font = '12px sans-serif';
+        ctx.fillText(b.label, b.x + barW / 2, H - pad.bottom + 18);
+      });
+    }
+    function drawLine() {
+      const canvas = document.getElementById('line-chart');
+      const dpr = devicePixelRatio || 1;
+      const W = canvas.parentElement.clientWidth - 32, H = 180;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+      const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+      const all = [
+        ...spending.map(t => ({ ...t, type: 'spending' })),
+        ...saving.map(t => ({ ...t, type: 'saving' }))
+      ].sort((a, b) => new Date(a.date) - new Date(b.date));
+      ctx.clearRect(0, 0, W, H);
+      if (!all.length) {
+        ctx.fillStyle = '#475569'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('Add entries to see the chart', W / 2, H / 2); return;
+      }
+      const points = [0]; let running = 0;
+      all.forEach(t => { running += t.type === 'saving' ? t.amount : -t.amount; points.push(running); });
+      const pad = { top: 20, bottom: 20, left: 8, right: 8 };
+      const minV = Math.min(...points), maxV = Math.max(...points), range = maxV - minV || 1;
+      const xOf = i => pad.left + (i / (points.length - 1)) * (W - pad.left - pad.right);
+      const yOf = v => pad.top + (1 - (v - minV) / range) * (H - pad.top - pad.bottom);
+      const grad = ctx.createLinearGradient(0, pad.top, 0, H);
+      grad.addColorStop(0, 'rgba(99,102,241,0.35)'); grad.addColorStop(1, 'rgba(99,102,241,0)');
+      ctx.beginPath(); ctx.moveTo(xOf(0), yOf(points[0]));
+      points.forEach((v, i) => { if (i > 0) ctx.lineTo(xOf(i), yOf(v)); });
+      ctx.lineTo(xOf(points.length - 1), H - pad.bottom); ctx.lineTo(xOf(0), H - pad.bottom);
+      ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+      ctx.beginPath(); ctx.moveTo(xOf(0), yOf(points[0]));
+      points.forEach((v, i) => { if (i > 0) ctx.lineTo(xOf(i), yOf(v)); });
+      ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.stroke();
+      points.forEach((v, i) => {
+        ctx.beginPath(); ctx.arc(xOf(i), yOf(v), 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = v >= 0 ? '#4ade80' : '#f87171'; ctx.fill();
+      });
+      const last = points[points.length - 1];
+      ctx.fillStyle = last >= 0 ? '#4ade80' : '#f87171';
+      ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText((last < 0 ? '-' : '') + fmt(last), W - pad.right, yOf(last) - 8);
+    }
+
+    renderSpending();
+    renderSaving();
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+  </script>
+</body>
+</html>
