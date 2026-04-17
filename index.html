@@ -72,7 +72,25 @@
       background: none; border: none; color: #475569;
       font-size: 1rem; cursor: pointer; padding: 0 0 0 10px;
     }
+    .tx-edit {
+      background: none; border: none; color: #6366f1;
+      font-size: 0.8rem; cursor: pointer; padding: 0 0 0 8px;
+    }
     .empty { text-align: center; color: #475569; font-size: 0.85rem; padding: 24px 0; }
+
+    /* Edit modal */
+    #edit-modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 300;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    #edit-modal.open { display: flex; }
+    .modal-box {
+      background: #1e293b; border-radius: 16px;
+      padding: 20px; width: 100%; max-width: 400px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .modal-box h3 { font-size: 1rem; color: #a5b4fc; margin-bottom: 4px; }
 
     /* Floating button */
     #fab {
@@ -147,6 +165,7 @@
         <div class="form-row">
           <input id="sv-job" type="text" placeholder="Job income (e.g. Main Job, Side Job)"/>
           <input id="sv-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
+          <textarea id="sv-note" placeholder="Note (optional)"></textarea>
           <button class="btn-saving" onclick="addSaving()">+ Add Income</button>
         </div>
       </div>
@@ -177,6 +196,21 @@
           <div>Daily (5d)<br><span id="pc-daily" style="color:#e2e8f0;font-weight:700;font-size:0.95rem"></span></div>
           <div>Annual Est.<br><span id="pc-annual" style="color:#e2e8f0;font-weight:700;font-size:0.95rem"></span></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="edit-modal">
+    <div class="modal-box">
+      <h3 id="edit-title">Edit</h3>
+      <input id="edit-desc" type="text" placeholder="Name"/>
+      <input id="edit-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
+      <input id="edit-due" type="date" title="Due date" style="display:none"/>
+      <textarea id="edit-note" placeholder="Note (optional)"></textarea>
+      <div style="display:flex;gap:8px">
+        <button onclick="saveEdit()" style="flex:1;background:#4f46e5;color:#fff">Save</button>
+        <button onclick="closeEdit()" style="flex:1;background:#334155;color:#94a3b8">Cancel</button>
       </div>
     </div>
   </div>
@@ -232,6 +266,7 @@
           </div>
           <div style="display:flex;align-items:center">
             <span class="tx-amount neg">−${fmt(t.amount)}</span>
+            <button class="tx-edit" onclick="editItem('spending',${i})">✏️</button>
             <button class="tx-delete" onclick="deleteSpending(${i})">✕</button>
           </div>
         </div>`;
@@ -277,6 +312,7 @@
           </div>
           <div style="display:flex;align-items:center">
             <span class="tx-amount pos">+${fmt(t.amount)}</span>
+            <button class="tx-edit" onclick="editItem('saving',${i})">✏️</button>
             <button class="tx-delete" onclick="deleteSaving(${i})">✕</button>
           </div>
         </div>`;
@@ -285,12 +321,14 @@
     function addSaving() {
       const job = document.getElementById('sv-job').value.trim();
       const amount = parseFloat(document.getElementById('sv-amount').value);
+      const note = document.getElementById('sv-note').value.trim();
       if (!job || isNaN(amount) || amount <= 0) return;
-      saving.push({ desc: job, amount, note: '', date: today() });
+      saving.push({ desc: job, amount, note, date: today() });
       localStorage.setItem('mt_saving', JSON.stringify(saving));
       renderSaving();
       document.getElementById('sv-job').value = '';
       document.getElementById('sv-amount').value = '';
+      document.getElementById('sv-note').value = '';
     }
     function deleteSaving(i) {
       saving.splice(i, 1);
@@ -300,6 +338,41 @@
     function clearSaving() {
       if (!confirm('Clear all savings?')) return;
       saving = []; localStorage.setItem('mt_saving', JSON.stringify(saving)); renderSaving();
+    }
+
+    // --- EDIT ---
+    let editType = null, editIndex = null;
+    function editItem(type, i) {
+      const t = type === 'spending' ? spending[i] : saving[i];
+      editType = type; editIndex = i;
+      document.getElementById('edit-title').textContent = type === 'spending' ? 'Edit Bill' : 'Edit Income';
+      document.getElementById('edit-desc').value = t.desc;
+      document.getElementById('edit-amount').value = t.amount;
+      document.getElementById('edit-note').value = t.note || '';
+      const dueField = document.getElementById('edit-due');
+      dueField.style.display = type === 'spending' ? '' : 'none';
+      dueField.value = t.due || '';
+      document.getElementById('edit-modal').classList.add('open');
+    }
+    function saveEdit() {
+      const desc = document.getElementById('edit-desc').value.trim();
+      const amount = parseFloat(document.getElementById('edit-amount').value);
+      const note = document.getElementById('edit-note').value.trim();
+      if (!desc || isNaN(amount) || amount <= 0) return;
+      if (editType === 'spending') {
+        spending[editIndex] = { ...spending[editIndex], desc, amount, note, due: document.getElementById('edit-due').value };
+        localStorage.setItem('mt_spending', JSON.stringify(spending));
+        renderSpending();
+      } else {
+        saving[editIndex] = { ...saving[editIndex], desc, amount, note };
+        localStorage.setItem('mt_saving', JSON.stringify(saving));
+        renderSaving();
+      }
+      closeEdit();
+    }
+    function closeEdit() {
+      document.getElementById('edit-modal').classList.remove('open');
+      editType = null; editIndex = null;
     }
 
     // --- PAYCHECK CALCULATOR ---
