@@ -94,7 +94,7 @@
 
     /* Floating button */
     #fab {
-      position: fixed; bottom: 24px; right: 20px;
+      position: fixed; bottom: 72px; right: 20px;
       width: 56px; height: 56px; border-radius: 50%;
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff; font-size: 1.4rem;
@@ -124,6 +124,33 @@
     .chart-wrap { background: #1e293b; border-radius: 16px; padding: 16px; margin-bottom: 24px; }
     .chart-wrap h3 { font-size: 0.95rem; color: #cbd5e1; margin-bottom: 14px; }
     canvas { width: 100% !important; display: block; }
+
+    /* Bottom nav */
+    #bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #1e293b; border-top: 1px solid #334155;
+      display: flex; z-index: 150; height: 60px;
+    }
+    .nav-tab {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px; background: none; border: none;
+      color: #64748b; font-size: 0.65rem; font-weight: 600;
+      cursor: pointer; padding: 0;
+    }
+    .nav-tab .nav-icon { font-size: 1.3rem; }
+    .nav-tab.active { color: #a5b4fc; }
+
+    /* Hours overlay */
+    #hours-overlay {
+      display: none; position: fixed; inset: 0;
+      background: #0f172a; z-index: 140;
+      overflow-y: auto; padding: 20px 16px 80px;
+    }
+    #hours-overlay.open { display: block; }
+    .hr-stat { background: #1e293b; border-radius: 12px; padding: 14px; text-align: center; }
+    .hr-stat .label { font-size: 0.72rem; color: #94a3b8; margin-bottom: 4px; }
+    .hr-stat .val { font-size: 1.2rem; font-weight: 700; color: #a5b4fc; }
   </style>
 </head>
 <body>
@@ -216,6 +243,42 @@
       </div>
     </div>
   </div>
+
+  <!-- Hours Tracker Overlay -->
+  <div id="hours-overlay">
+    <h1 style="font-size:1.4rem;font-weight:700;color:#a5b4fc;margin-bottom:20px">⏱️ Hours Tracker</h1>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
+      <div class="hr-stat"><div class="label">This Week</div><div class="val" id="hr-week">0h</div></div>
+      <div class="hr-stat"><div class="label">This Month</div><div class="val" id="hr-month">0h</div></div>
+      <div class="hr-stat"><div class="label">Total</div><div class="val" id="hr-total">0h</div></div>
+    </div>
+    <div class="form-card">
+      <div class="form-row">
+        <input id="hr-date" type="date"/>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <input id="hr-start" type="time" placeholder="Start time"/>
+          <input id="hr-end"   type="time" placeholder="End time"/>
+        </div>
+        <input id="hr-label" type="text" placeholder="Label (e.g. Main Job)"/>
+        <button style="background:#4f46e5;color:#fff" onclick="addHours()">+ Log Hours</button>
+      </div>
+    </div>
+    <div class="section-header">
+      <span>Log</span>
+      <button class="clear-btn" onclick="clearHours()">Clear All</button>
+    </div>
+    <div class="tx-list" id="hours-list"></div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav id="bottom-nav">
+    <button class="nav-tab active" id="tab-money" onclick="showTab('money')">
+      <span class="nav-icon">💰</span>Money
+    </button>
+    <button class="nav-tab" id="tab-hours" onclick="showTab('hours')">
+      <span class="nav-icon">⏱️</span>Hours
+    </button>
+  </nav>
 
   <!-- Floating overview button -->
   <button id="fab" onclick="openOverview()" title="Overview">📊</button>
@@ -493,11 +556,73 @@
       ctx.fillText((last < 0 ? '-' : '') + fmt(last), W - pad.right, yOf(last) - 8);
     }
 
+    // --- HOURS ---
+    let hours = JSON.parse(localStorage.getItem('mt_hours') || '[]');
+
+    function addHours() {
+      const date  = document.getElementById('hr-date').value;
+      const start = document.getElementById('hr-start').value;
+      const end   = document.getElementById('hr-end').value;
+      const label = document.getElementById('hr-label').value.trim() || 'Work';
+      if (!date || !start || !end) return;
+      const [sh, sm] = start.split(':').map(Number);
+      const [eh, em] = end.split(':').map(Number);
+      let mins = (eh * 60 + em) - (sh * 60 + sm);
+      if (mins <= 0) mins += 24 * 60;
+      const h = +(mins / 60).toFixed(2);
+      hours.push({ date, start, end, h, label });
+      localStorage.setItem('mt_hours', JSON.stringify(hours));
+      renderHours();
+      document.getElementById('hr-start').value = '';
+      document.getElementById('hr-end').value = '';
+      document.getElementById('hr-label').value = '';
+    }
+    function deleteHour(i) {
+      hours.splice(i, 1);
+      localStorage.setItem('mt_hours', JSON.stringify(hours));
+      renderHours();
+    }
+    function clearHours() {
+      if (!confirm('Clear all hours?')) return;
+      hours = []; localStorage.setItem('mt_hours', JSON.stringify(hours)); renderHours();
+    }
+    function renderHours() {
+      const now = new Date();
+      const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+      const weekH  = hours.filter(e => new Date(e.date) >= weekStart).reduce((s,e) => s+e.h, 0);
+      const monthH = hours.filter(e => { const d=new Date(e.date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); }).reduce((s,e) => s+e.h, 0);
+      const totalH = hours.reduce((s,e) => s+e.h, 0);
+      document.getElementById('hr-week').textContent  = weekH.toFixed(1)+'h';
+      document.getElementById('hr-month').textContent = monthH.toFixed(1)+'h';
+      document.getElementById('hr-total').textContent = totalH.toFixed(1)+'h';
+      const list = document.getElementById('hours-list');
+      if (!hours.length) { list.innerHTML = '<div class="empty">No hours logged yet</div>'; return; }
+      list.innerHTML = [...hours].reverse().map((e,ri) => {
+        const i = hours.length-1-ri;
+        return `<div class="tx-item">
+          <div style="flex:1">
+            <div class="tx-desc">${e.label}</div>
+            <div class="tx-date">${e.date} · ${e.start}–${e.end}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="tx-amount" style="color:#a5b4fc">${e.h.toFixed(2)}h</span>
+            <button class="tx-delete" onclick="deleteHour(${i})">✕</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    function showTab(tab) {
+      const isHours = tab === 'hours';
+      document.getElementById('hours-overlay').classList.toggle('open', isHours);
+      document.getElementById('tab-money').classList.toggle('active', !isHours);
+      document.getElementById('tab-hours').classList.toggle('active', isHours);
+      document.getElementById('fab').style.display = isHours ? 'none' : 'flex';
+    }
+
     renderSpending();
     renderSaving();
     renderCombined();
-
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+    renderHours(); navigator.serviceWorker.register('./sw.js');
   </script>
 </body>
 </html>
