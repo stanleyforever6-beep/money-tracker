@@ -246,11 +246,12 @@
       <div id="pc-result" style="display:none;margin-top:14px;background:#0f172a;border-radius:12px;padding:16px">
         <div style="font-size:0.75rem;color:#94a3b8;margin-bottom:4px">Bi-Weekly Gross Pay</div>
         <div id="pc-gross" style="font-size:2.2rem;font-weight:800;color:#93c5fd;margin-bottom:12px"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:0.78rem;color:#64748b">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:0.78rem;color:#64748b;margin-bottom:12px">
           <div>Weekly<br><span id="pc-weekly" style="color:#e2e8f0;font-weight:700;font-size:0.95rem"></span></div>
           <div>Daily (5d)<br><span id="pc-daily" style="color:#e2e8f0;font-weight:700;font-size:0.95rem"></span></div>
           <div>Annual Est.<br><span id="pc-annual" style="color:#e2e8f0;font-weight:700;font-size:0.95rem"></span></div>
         </div>
+        <button onclick="savePaycheck()" style="width:100%;background:#166534;color:#4ade80">💾 Save to Income</button>
       </div>
     </div>
   </div>
@@ -486,18 +487,24 @@
     }
 
     // --- PAYCHECK CALCULATOR ---
+    let lastGross = 0;
     function calcPaycheck() {
-      const hours = parseFloat(document.getElementById('pc-hours').value);
-      const rate  = parseFloat(document.getElementById('pc-rate').value);
-      if (isNaN(hours) || isNaN(rate) || hours <= 0 || rate <= 0) return;
-      const gross  = hours * rate;
-      const daily  = gross / 14;
-      const annual = gross * 26;
-      document.getElementById('pc-gross').textContent  = '$' + gross.toFixed(2);
-      document.getElementById('pc-weekly').textContent = '$' + (gross / 2).toFixed(2);
-      document.getElementById('pc-daily').textContent  = '$' + daily.toFixed(2);
-      document.getElementById('pc-annual').textContent = '$' + annual.toFixed(2);
+      const hrs  = parseFloat(document.getElementById('pc-hours').value);
+      const rate = parseFloat(document.getElementById('pc-rate').value);
+      if (isNaN(hrs) || isNaN(rate) || hrs <= 0 || rate <= 0) return;
+      lastGross = hrs * rate;
+      document.getElementById('pc-gross').textContent  = '$' + lastGross.toFixed(2);
+      document.getElementById('pc-weekly').textContent = '$' + (lastGross / 2).toFixed(2);
+      document.getElementById('pc-daily').textContent  = '$' + (lastGross / 14).toFixed(2);
+      document.getElementById('pc-annual').textContent = '$' + (lastGross * 26).toFixed(2);
       document.getElementById('pc-result').style.display = 'block';
+    }
+    function savePaycheck() {
+      if (!lastGross) return;
+      saving.push({ desc: 'Bi-Weekly Paycheck', amount: lastGross, note: '', date: today() });
+      localStorage.setItem('mt_saving', JSON.stringify(saving));
+      renderSaving(); renderCombined();
+      alert('Saved $' + lastGross.toFixed(2) + ' to Income!');
     }
 
     // --- OVERVIEW ---
