@@ -186,7 +186,7 @@
   <h1>💰 Money Tracker</h1>
 
   <!-- Combined balance -->
-  <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;padding:18px;margin-bottom:20px;text-align:center">
+  <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;padding:18px;margin-bottom:12px;text-align:center">
     <div style="font-size:0.78rem;color:#a5b4fc;margin-bottom:4px">Income − Bills</div>
     <div id="combined-total" style="font-size:2.2rem;font-weight:800">$0.00</div>
     <div style="display:flex;justify-content:center;gap:24px;margin-top:10px;font-size:0.78rem;color:#94a3b8">
@@ -194,6 +194,25 @@
       <span>Bills: <strong id="combined-bills" style="color:#f87171">$0.00</strong></span>
     </div>
   </div>
+
+  <!-- Budget goal -->
+  <div style="background:#1e293b;border-radius:14px;padding:14px;margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:0.8rem;color:#94a3b8;font-weight:600">Monthly Bill Budget</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="budget-input" type="number" placeholder="Set limit" min="0" step="1"
+          style="width:100px;padding:4px 8px;font-size:0.8rem;border-radius:8px"/>
+        <button onclick="saveBudget()" style="background:#4f46e5;color:#fff;padding:4px 10px;font-size:0.78rem;border-radius:8px">Set</button>
+      </div>
+    </div>
+    <div style="background:#0f172a;border-radius:8px;height:10px;overflow:hidden">
+      <div id="budget-bar" style="height:100%;border-radius:8px;background:#4ade80;width:0%;transition:width 0.4s"></div>
+    </div>
+    <div id="budget-label" style="font-size:0.72rem;color:#64748b;margin-top:5px;text-align:right">No budget set</div>
+  </div>
+
+  <!-- Due soon alerts -->
+  <div id="due-alerts" style="margin-bottom:16px"></div>
 
   <div class="split">
     <!-- SPENDING -->
@@ -260,10 +279,22 @@
   <!-- Hours Tracker Overlay -->
   <div id="hours-overlay">
     <h1 style="font-size:1.4rem;font-weight:700;color:#a5b4fc;margin-bottom:20px">⏱️ Hours Tracker</h1>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
       <div class="hr-stat"><div class="label">This Week</div><div class="val" id="hr-week">0h</div></div>
       <div class="hr-stat"><div class="label">This Month</div><div class="val" id="hr-month">0h</div></div>
       <div class="hr-stat"><div class="label">Total</div><div class="val" id="hr-total">0h</div></div>
+    </div>
+    <div style="background:#1e293b;border-radius:12px;padding:12px;margin-bottom:16px;display:flex;align-items:center;gap:10px">
+      <div style="flex:1">
+        <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:2px">Est. Pay (month)</div>
+        <div id="hr-est-pay" style="font-size:1.1rem;font-weight:700;color:#4ade80">$0.00</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:0.75rem;color:#64748b">@ $</span>
+        <input id="hr-rate-stored" type="number" placeholder="$/hr" min="0" step="0.01"
+          style="width:72px;padding:6px 8px;font-size:0.8rem;border-radius:8px" oninput="updateEstPay()"/>
+        <span style="font-size:0.75rem;color:#64748b">/hr</span>
+      </div>
     </div>
     <div class="form-card">
       <button class="cal-toggle" onclick="toggleCal()">
@@ -328,6 +359,7 @@
       <button id="lf-bills"  onclick="setLogFilter('bills')"  style="background:#1e293b;color:#94a3b8;padding:6px 14px;font-size:0.8rem">🧾 Bills</button>
       <button id="lf-income" onclick="setLogFilter('income')" style="background:#1e293b;color:#94a3b8;padding:6px 14px;font-size:0.8rem">💰 Income</button>
       <button id="lf-hours"  onclick="setLogFilter('hours')"  style="background:#1e293b;color:#94a3b8;padding:6px 14px;font-size:0.8rem">⏱️ Hours</button>
+      <button onclick="exportCSV()" style="background:#0f172a;color:#94a3b8;border:1px solid #334155;padding:6px 14px;font-size:0.8rem;margin-left:auto">⬇️ Export CSV</button>
     </div>
     <div class="tx-list" id="logged-list"></div>
   </div>
@@ -418,7 +450,7 @@
       if (!name || isNaN(amount) || amount <= 0) return;
       spending.push({ desc: name, amount, note, due, date: today() });
       localStorage.setItem('mt_spending', JSON.stringify(spending));
-      renderSpending(); renderCombined();
+      renderSpending(); renderCombined(); renderBudget(); renderDueAlerts();
       document.getElementById('sp-name').value = '';
       document.getElementById('sp-amount').value = '';
       document.getElementById('sp-due').value = '';
@@ -427,11 +459,11 @@
     function deleteSpending(i) {
       spending.splice(i, 1);
       localStorage.setItem('mt_spending', JSON.stringify(spending));
-      renderSpending(); renderCombined();
+      renderSpending(); renderCombined(); renderBudget(); renderDueAlerts();
     }
     function clearSpending() {
       if (!confirm('Clear all expenses?')) return;
-      spending = []; localStorage.setItem('mt_spending', JSON.stringify(spending)); renderSpending(); renderCombined();
+      spending = []; localStorage.setItem('mt_spending', JSON.stringify(spending)); renderSpending(); renderCombined(); renderBudget(); renderDueAlerts();
     }
 
     // --- SAVING ---
@@ -498,7 +530,7 @@
       if (editType === 'spending') {
         spending[editIndex] = { ...spending[editIndex], desc, amount, note, due: document.getElementById('edit-due').value };
         localStorage.setItem('mt_spending', JSON.stringify(spending));
-        renderSpending(); renderCombined();
+        renderSpending(); renderCombined(); renderBudget(); renderDueAlerts();
       } else {
         saving[editIndex] = { ...saving[editIndex], desc, amount, note };
         localStorage.setItem('mt_saving', JSON.stringify(saving));
@@ -743,6 +775,7 @@
       document.getElementById('hr-week').textContent  = weekH.toFixed(1)+'h';
       document.getElementById('hr-month').textContent = monthH.toFixed(1)+'h';
       document.getElementById('hr-total').textContent = totalH.toFixed(1)+'h';
+      updateEstPay();
       const list = document.getElementById('hours-list');
       if (!hours.length) { list.innerHTML = '<div class="empty">No hours logged yet</div>'; return; }
       list.innerHTML = [...hours].reverse().map((e,ri) => {
@@ -805,10 +838,80 @@
       if (tab === 'logged') renderLogged();
     }
 
+    // --- BUDGET ---
+    let budget = parseFloat(localStorage.getItem('mt_budget') || '0');
+    function saveBudget() {
+      budget = parseFloat(document.getElementById('budget-input').value) || 0;
+      localStorage.setItem('mt_budget', budget);
+      renderBudget();
+    }
+    function renderBudget() {
+      const bills = spending.reduce((s,t) => s+t.amount, 0);
+      const bar = document.getElementById('budget-bar');
+      const lbl = document.getElementById('budget-label');
+      if (!budget) { bar.style.width='0%'; lbl.textContent='No budget set'; return; }
+      const pct = Math.min(bills / budget * 100, 100);
+      bar.style.width = pct + '%';
+      bar.style.background = pct >= 100 ? '#f87171' : pct >= 80 ? '#fbbf24' : '#4ade80';
+      lbl.textContent = `${fmt(bills)} of ${fmt(budget)} (${pct.toFixed(0)}%)`;
+      if (budget) document.getElementById('budget-input').value = budget;
+    }
+
+    // --- DUE ALERTS ---
+    function renderDueAlerts() {
+      const today_ = new Date(); today_.setHours(0,0,0,0);
+      const soon = spending.filter(t => {
+        if (!t.due) return false;
+        const d = new Date(t.due + 'T00:00:00');
+        const diff = (d - today_) / 86400000;
+        return diff >= 0 && diff <= 7;
+      }).sort((a,b) => a.due.localeCompare(b.due));
+      const el = document.getElementById('due-alerts');
+      if (!soon.length) { el.innerHTML = ''; return; }
+      el.innerHTML = soon.map(t => {
+        const d = new Date(t.due + 'T00:00:00');
+        const diff = Math.round((d - today_) / 86400000);
+        const label = diff === 0 ? 'Due TODAY' : diff === 1 ? 'Due tomorrow' : `Due in ${diff} days`;
+        return `<div style="background:#451a03;border:1px solid #92400e;border-radius:10px;padding:10px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <span style="font-size:0.75rem;font-weight:700;color:#fbbf24">⚠️ ${label}</span>
+            <div style="font-size:0.88rem;color:#e2e8f0;margin-top:2px">${t.desc}</div>
+          </div>
+          <span style="color:#f87171;font-weight:700">${fmt(t.amount)}</span>
+        </div>`;
+      }).join('');
+    }
+
+    // --- EXPORT CSV ---
+    function exportCSV() {
+      const rows = [['Type','Name','Amount','Date','Note','Due','Hours']];
+      spending.forEach(t => rows.push(['bill', t.desc, t.amount, t.date, t.note||'', t.due||'', '']));
+      saving.forEach(t   => rows.push(['income', t.desc, t.amount, t.date, t.note||'', '', '']));
+      hours.forEach(t    => rows.push(['hours', t.label, '', t.date, '', '', t.dayoff?'off':t.h]));
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const a = document.createElement('a');
+      a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+      a.download = 'money-tracker.csv';
+      a.click();
+    }
+
+    // --- EST PAY ---
+    function updateEstPay() {
+      const rate = parseFloat(document.getElementById('hr-rate-stored').value) || 0;
+      localStorage.setItem('mt_hr_rate', rate);
+      const now = new Date();
+      const monthH = hours.filter(e => { const d=new Date(e.date+'T12:00:00'); return !e.dayoff && d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); }).reduce((s,e)=>s+e.h,0);
+      document.getElementById('hr-est-pay').textContent = '$' + (monthH * rate).toFixed(2);
+    }
+
     renderSpending();
     renderSaving();
     renderCombined();
     renderHours();
+    renderBudget();
+    renderDueAlerts();
+    const storedRate = localStorage.getItem('mt_hr_rate');
+    if (storedRate) { document.getElementById('hr-rate-stored').value = storedRate; updateEstPay(); }
     calInit(); navigator.serviceWorker.register('./sw.js');
   </script>
 </body>
