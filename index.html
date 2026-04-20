@@ -254,7 +254,16 @@
     </div>
     <div class="form-card">
       <div class="form-row">
-        <input id="hr-date" type="date"/>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:4px">From</div>
+            <input id="hr-date-from" type="date"/>
+          </div>
+          <div>
+            <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:4px">To</div>
+            <input id="hr-date-to" type="date"/>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <input id="hr-start" type="time" placeholder="Start time"/>
           <input id="hr-end"   type="time" placeholder="End time"/>
@@ -560,17 +569,25 @@
     let hours = JSON.parse(localStorage.getItem('mt_hours') || '[]');
 
     function addHours() {
-      const date  = document.getElementById('hr-date').value;
+      const from  = document.getElementById('hr-date-from').value;
+      const to    = document.getElementById('hr-date-to').value || from;
       const start = document.getElementById('hr-start').value;
       const end   = document.getElementById('hr-end').value;
       const label = document.getElementById('hr-label').value.trim() || 'Work';
-      if (!date || !start || !end) return;
+      if (!from || !start || !end) return;
       const [sh, sm] = start.split(':').map(Number);
       const [eh, em] = end.split(':').map(Number);
       let mins = (eh * 60 + em) - (sh * 60 + sm);
       if (mins <= 0) mins += 24 * 60;
       const h = +(mins / 60).toFixed(2);
-      hours.push({ date, start, end, h, label });
+      // loop through each day in range
+      const cur = new Date(from + 'T12:00:00');
+      const end_ = new Date(to + 'T12:00:00');
+      while (cur <= end_) {
+        const date = cur.toISOString().slice(0, 10);
+        hours.push({ date, start, end, h, label });
+        cur.setDate(cur.getDate() + 1);
+      }
       localStorage.setItem('mt_hours', JSON.stringify(hours));
       renderHours();
       document.getElementById('hr-start').value = '';
@@ -614,7 +631,8 @@
     }
     function copyHour(i) {
       const e = hours[i];
-      document.getElementById('hr-date').value = e.date;
+      document.getElementById('hr-date-from').value = e.date;
+      document.getElementById('hr-date-to').value = e.date;
       document.getElementById('hr-start').value = e.start;
       document.getElementById('hr-end').value = e.end;
       document.getElementById('hr-label').value = e.label;
