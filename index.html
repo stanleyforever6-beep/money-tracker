@@ -318,10 +318,12 @@
       </div>
     </div>
     <div class="section-header">
-      <span>Log</span>
+      <button class="cal-toggle" onclick="toggleList('hours')" style="flex:1;margin-right:8px;padding:7px 12px;background:#1e293b;border-color:#334155">
+        <span id="hours-list-label">Log (0)</span><span id="hours-list-arrow">▼</span>
+      </button>
       <button class="clear-btn" onclick="clearHours()">Clear All</button>
     </div>
-    <div class="tx-list" id="hours-list"></div>
+    <div class="tx-list" id="hours-list" style="display:none"></div>
 
     <!-- Paycheck Calculator (moved here) -->
     <div style="margin-top:24px">
@@ -359,7 +361,12 @@
       <button id="lf-hours"  onclick="setLogFilter('hours')"  style="background:#1e293b;color:#94a3b8;padding:6px 14px;font-size:0.8rem">⏱️ Hours</button>
       <button onclick="exportCSV()" style="background:#0f172a;color:#94a3b8;border:1px solid #334155;padding:6px 14px;font-size:0.8rem;margin-left:auto">⬇️ Export CSV</button>
     </div>
-    <div class="tx-list" id="logged-list"></div>
+    <div class="section-header" style="margin-top:8px">
+      <button class="cal-toggle" onclick="toggleList('logged')" style="flex:1;padding:7px 12px;background:#1e293b;border-color:#334155">
+        <span id="logged-list-label">All Entries (0)</span><span id="logged-list-arrow">▼</span>
+      </button>
+    </div>
+    <div class="tx-list" id="logged-list" style="display:none;margin-top:8px"></div>
   </div>
 
   <nav id="bottom-nav">
@@ -415,12 +422,11 @@
     }
 
     function toggleList(which) {
-      const listId = which === 'bills' ? 'spending-list' : 'saving-list';
-      const arrowId = which + '-list-arrow';
-      const el = document.getElementById(listId);
+      const ids = { bills: 'spending-list', income: 'saving-list', hours: 'hours-list', logged: 'logged-list' };
+      const el = document.getElementById(ids[which]);
       const open = el.style.display === 'none';
       el.style.display = open ? 'flex' : 'none';
-      document.getElementById(arrowId).textContent = open ? '▲' : '▼';
+      document.getElementById(which + '-list-arrow').textContent = open ? '▲' : '▼';
     }
 
     // --- SPENDING ---
@@ -803,6 +809,7 @@
       document.getElementById('hr-month').textContent = monthH.toFixed(1)+'h';
       document.getElementById('hr-total').textContent = totalH.toFixed(1)+'h';
       updateEstPay();
+      document.getElementById('hours-list-label').textContent = `Log (${hours.length})`;
       const list = document.getElementById('hours-list');
       if (!hours.length) { list.innerHTML = '<div class="empty">No hours logged yet</div>'; return; }
       list.innerHTML = [...hours].reverse().map((e,ri) => {
@@ -841,6 +848,7 @@
         ...hours.map(t   => ({ ...t, cat: 'hours',  label: t.label, sub: t.date+(t.start?' · '+t.start+'–'+t.end:''), val: t.dayoff?'Off':t.h.toFixed(2)+'h', color: t.dayoff?'#64748b':'#a5b4fc' }))
       ].filter(t => logFilter === 'all' || t.cat === logFilter)
        .sort((a, b) => (b.date||'').localeCompare(a.date||''));
+      document.getElementById('logged-list-label').textContent = `${logFilter === 'all' ? 'All Entries' : logFilter.charAt(0).toUpperCase()+logFilter.slice(1)} (${all.length})`;
       const list = document.getElementById('logged-list');
       if (!all.length) { list.innerHTML = '<div class="empty">Nothing logged yet</div>'; return; }
       list.innerHTML = all.map(t => `
