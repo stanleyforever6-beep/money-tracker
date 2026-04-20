@@ -151,6 +151,22 @@
     .hr-stat { background: #1e293b; border-radius: 12px; padding: 14px; text-align: center; }
     .hr-stat .label { font-size: 0.72rem; color: #94a3b8; margin-bottom: 4px; }
     .hr-stat .val { font-size: 1.2rem; font-weight: 700; color: #a5b4fc; }
+
+    /* Calendar */
+    .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .cal-header button { background: #1e293b; border: none; color: #cbd5e1; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
+    .cal-month { font-size: 1rem; font-weight: 700; color: #cbd5e1; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 16px; }
+    .cal-day-label { text-align: center; font-size: 0.7rem; color: #64748b; font-weight: 600; padding: 4px 0; }
+    .cal-day {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      background: #1e293b; border-radius: 8px; font-size: 0.8rem;
+      cursor: pointer; user-select: none; position: relative;
+    }
+    .cal-day.other-month { opacity: 0.3; }
+    .cal-day.selected { background: #4f46e5; color: #fff; font-weight: 700; }
+    .cal-day.has-hours { background: #166534; color: #4ade80; font-weight: 700; }
+    .cal-day.day-off { background: #7f1d1d; color: #f87171; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -253,27 +269,23 @@
       <div class="hr-stat"><div class="label">Total</div><div class="val" id="hr-total">0h</div></div>
     </div>
     <div class="form-card">
-      <div class="form-row">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div>
-            <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:4px">From</div>
-            <input id="hr-date-from" type="date"/>
-          </div>
-          <div>
-            <div style="font-size:0.72rem;color:#94a3b8;margin-bottom:4px">To</div>
-            <input id="hr-date-to" type="date"/>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <input id="hr-start" type="time" placeholder="Start time"/>
-          <input id="hr-end"   type="time" placeholder="End time"/>
-        </div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:#cbd5e1;cursor:pointer">
-          <input id="hr-dayoff" type="checkbox" style="width:auto;cursor:pointer"/>
-          Mark as Day Off (no hours)
-        </label>
-        <input id="hr-label" type="text" placeholder="Label (e.g. Main Job)"/>
-        <button style="background:#4f46e5;color:#fff" onclick="addHours()">+ Log Hours</button>
+      <div class="cal-header">
+        <button onclick="prevMonth()">‹</button>
+        <div class="cal-month" id="cal-month">Month</div>
+        <button onclick="nextMonth()">›</button>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div style="font-size:0.75rem;color:#64748b;margin-bottom:12px;text-align:center">
+        Click or drag to select days
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <input id="hr-start" type="time" placeholder="Start time"/>
+        <input id="hr-end"   type="time" placeholder="End time"/>
+      </div>
+      <input id="hr-label" type="text" placeholder="Label (e.g. Main Job)" style="margin-bottom:8px"/>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button style="background:#166534;color:#4ade80" onclick="logSelectedDays(false)">Log Hours</button>
+        <button style="background:#7f1d1d;color:#f87171" onclick="logSelectedDays(true)">Mark Off</button>
       </div>
     </div>
     <div class="section-header">
@@ -571,15 +583,71 @@
 
     // --- HOURS ---
     let hours = JSON.parse(localStorage.getItem('mt_hours') || '[]');
+    let calYear, calMonth, selectedDays = new Set(), isDragging = false;
 
-    function addHours() {
-      const from   = document.getElementById('hr-date-from').value;
-      const to     = document.getElementById('hr-date-to').value || from;
-      const start  = document.getElementById('hr-start').value;
-      const end    = document.getElementById('hr-end').value;
-      const label  = document.getElementById('hr-label').value.trim() || 'Work';
-      const dayoff = document.getElementById('hr-dayoff').checked;
-      if (!from) return;
+    function calInit() {
+      const now = new Date();
+      calYear = now.getFullYear(); calMonth = now.getMonth();
+      renderCal();
+    }
+    function prevMonth() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCal(); }
+    function nextMonth() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCal(); }
+
+    function renderCal() {
+      document.getElementById('cal-month').textContent =
+        new Date(calYear, calMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const grid = document.getElementById('cal-grid');
+      const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+      let html = days.map(d => `<div class="cal-day-label">${d}</div>`).join('');
+      const first = new Date(calYear, calMonth, 1).getDay();
+      const total = new Date(calYear, calMonth + 1, 0).getDate();
+      const prevTotal = new Date(calYear, calMonth, 0).getDate();
+      // prev month padding
+      for (let i = first - 1; i >= 0; i--) {
+        html += `<div class="cal-day other-month">${prevTotal - i}</div>`;
+      }
+      // current month
+      for (let d = 1; d <= total; d++) {
+        const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const hasHours = hours.some(e => e.date === dateStr && !e.dayoff);
+        const isOff    = hours.some(e => e.date === dateStr && e.dayoff);
+        const isSel    = selectedDays.has(dateStr);
+        const cls = isSel ? 'selected' : hasHours ? 'has-hours' : isOff ? 'day-off' : '';
+        html += `<div class="cal-day ${cls}" data-date="${dateStr}"
+          onmousedown="startDrag('${dateStr}')"
+          onmouseover="dragOver('${dateStr}')"
+          onmouseup="endDrag()"
+          ontouchstart="startDrag('${dateStr}')"
+          ontouchmove="touchDragOver(event)"
+          ontouchend="endDrag()">${d}</div>`;
+      }
+      // next month padding
+      const remaining = (7 - ((first + total) % 7)) % 7;
+      for (let d = 1; d <= remaining; d++) {
+        html += `<div class="cal-day other-month">${d}</div>`;
+      }
+      grid.innerHTML = html;
+    }
+
+    function startDrag(date) { isDragging = true; toggleDay(date); }
+    function dragOver(date) { if (isDragging) { selectedDays.add(date); renderCal(); } }
+    function endDrag() { isDragging = false; }
+    function touchDragOver(e) {
+      const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
+      if (el && el.dataset.date) dragOver(el.dataset.date);
+    }
+    function toggleDay(date) {
+      if (selectedDays.has(date)) selectedDays.delete(date);
+      else selectedDays.add(date);
+      renderCal();
+    }
+    document.addEventListener('mouseup', () => { isDragging = false; });
+
+    function logSelectedDays(dayoff) {
+      if (!selectedDays.size) return;
+      const start = document.getElementById('hr-start').value;
+      const end   = document.getElementById('hr-end').value;
+      const label = document.getElementById('hr-label').value.trim() || 'Work';
       if (!dayoff && (!start || !end)) return;
       let h = 0;
       if (!dayoff) {
@@ -589,35 +657,34 @@
         if (mins <= 0) mins += 24 * 60;
         h = +(mins / 60).toFixed(2);
       }
-      const cur = new Date(from + 'T12:00:00');
-      const end_ = new Date(to + 'T12:00:00');
-      while (cur <= end_) {
-        const date = cur.toISOString().slice(0, 10);
+      selectedDays.forEach(date => {
+        // remove existing entry for that date first
+        const idx = hours.findIndex(e => e.date === date);
+        if (idx !== -1) hours.splice(idx, 1);
         hours.push({ date, start: dayoff ? '' : start, end: dayoff ? '' : end, h, label: dayoff ? '🌴 Day Off' : label, dayoff: !!dayoff });
-        cur.setDate(cur.getDate() + 1);
-      }
+      });
+      hours.sort((a, b) => a.date.localeCompare(b.date));
       localStorage.setItem('mt_hours', JSON.stringify(hours));
+      selectedDays.clear();
       renderHours();
-      document.getElementById('hr-start').value = '';
-      document.getElementById('hr-end').value = '';
-      document.getElementById('hr-label').value = '';
-      document.getElementById('hr-dayoff').checked = false;
+      renderCal();
     }
+
     function deleteHour(i) {
       hours.splice(i, 1);
       localStorage.setItem('mt_hours', JSON.stringify(hours));
-      renderHours();
+      renderHours(); renderCal();
     }
     function clearHours() {
       if (!confirm('Clear all hours?')) return;
-      hours = []; localStorage.setItem('mt_hours', JSON.stringify(hours)); renderHours();
+      hours = []; localStorage.setItem('mt_hours', JSON.stringify(hours)); renderHours(); renderCal();
     }
     function renderHours() {
       const now = new Date();
       const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
-      const weekH  = hours.filter(e => new Date(e.date) >= weekStart).reduce((s,e) => s+e.h, 0);
-      const monthH = hours.filter(e => { const d=new Date(e.date); return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); }).reduce((s,e) => s+e.h, 0);
-      const totalH = hours.reduce((s,e) => s+e.h, 0);
+      const weekH  = hours.filter(e => !e.dayoff && new Date(e.date+'T12:00:00') >= weekStart).reduce((s,e) => s+e.h, 0);
+      const monthH = hours.filter(e => { const d=new Date(e.date+'T12:00:00'); return !e.dayoff && d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); }).reduce((s,e) => s+e.h, 0);
+      const totalH = hours.filter(e => !e.dayoff).reduce((s,e) => s+e.h, 0);
       document.getElementById('hr-week').textContent  = weekH.toFixed(1)+'h';
       document.getElementById('hr-month').textContent = monthH.toFixed(1)+'h';
       document.getElementById('hr-total').textContent = totalH.toFixed(1)+'h';
@@ -632,7 +699,6 @@
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <span class="tx-amount" style="color:${e.dayoff ? '#64748b' : '#a5b4fc'}">${e.dayoff ? 'Off' : e.h.toFixed(2)+'h'}</span>
-            <button class="tx-edit" onclick="copyHour(${i})">📋</button>
             <button class="tx-delete" onclick="deleteHour(${i})">✕</button>
           </div>
         </div>`;
@@ -640,8 +706,6 @@
     }
     function copyHour(i) {
       const e = hours[i];
-      document.getElementById('hr-date-from').value = e.date;
-      document.getElementById('hr-date-to').value = e.date;
       document.getElementById('hr-start').value = e.start;
       document.getElementById('hr-end').value = e.end;
       document.getElementById('hr-label').value = e.label;
@@ -657,7 +721,8 @@
     renderSpending();
     renderSaving();
     renderCombined();
-    renderHours(); navigator.serviceWorker.register('./sw.js');
+    renderHours();
+    calInit(); navigator.serviceWorker.register('./sw.js');
   </script>
 </body>
 </html>
