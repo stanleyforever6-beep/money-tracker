@@ -606,10 +606,18 @@
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <span class="tx-amount" style="color:#a5b4fc">${e.h.toFixed(2)}h</span>
+            <button class="tx-edit" onclick="copyHour(${i})">📋</button>
             <button class="tx-delete" onclick="deleteHour(${i})">✕</button>
           </div>
         </div>`;
       }).join('');
+    }
+    function copyHour(i) {
+      const e = hours[i];
+      document.getElementById('hr-date').value = e.date;
+      document.getElementById('hr-start').value = e.start;
+      document.getElementById('hr-end').value = e.end;
+      document.getElementById('hr-label').value = e.label;
     }
     function showTab(tab) {
       const isHours = tab === 'hours';
