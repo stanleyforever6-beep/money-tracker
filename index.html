@@ -268,6 +268,10 @@
           <input id="hr-start" type="time" placeholder="Start time"/>
           <input id="hr-end"   type="time" placeholder="End time"/>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:#cbd5e1;cursor:pointer">
+          <input id="hr-dayoff" type="checkbox" style="width:auto;cursor:pointer"/>
+          Mark as Day Off (no hours)
+        </label>
         <input id="hr-label" type="text" placeholder="Label (e.g. Main Job)"/>
         <button style="background:#4f46e5;color:#fff" onclick="addHours()">+ Log Hours</button>
       </div>
@@ -569,23 +573,27 @@
     let hours = JSON.parse(localStorage.getItem('mt_hours') || '[]');
 
     function addHours() {
-      const from  = document.getElementById('hr-date-from').value;
-      const to    = document.getElementById('hr-date-to').value || from;
-      const start = document.getElementById('hr-start').value;
-      const end   = document.getElementById('hr-end').value;
-      const label = document.getElementById('hr-label').value.trim() || 'Work';
-      if (!from || !start || !end) return;
-      const [sh, sm] = start.split(':').map(Number);
-      const [eh, em] = end.split(':').map(Number);
-      let mins = (eh * 60 + em) - (sh * 60 + sm);
-      if (mins <= 0) mins += 24 * 60;
-      const h = +(mins / 60).toFixed(2);
-      // loop through each day in range
+      const from   = document.getElementById('hr-date-from').value;
+      const to     = document.getElementById('hr-date-to').value || from;
+      const start  = document.getElementById('hr-start').value;
+      const end    = document.getElementById('hr-end').value;
+      const label  = document.getElementById('hr-label').value.trim() || 'Work';
+      const dayoff = document.getElementById('hr-dayoff').checked;
+      if (!from) return;
+      if (!dayoff && (!start || !end)) return;
+      let h = 0;
+      if (!dayoff) {
+        const [sh, sm] = start.split(':').map(Number);
+        const [eh, em] = end.split(':').map(Number);
+        let mins = (eh * 60 + em) - (sh * 60 + sm);
+        if (mins <= 0) mins += 24 * 60;
+        h = +(mins / 60).toFixed(2);
+      }
       const cur = new Date(from + 'T12:00:00');
       const end_ = new Date(to + 'T12:00:00');
       while (cur <= end_) {
         const date = cur.toISOString().slice(0, 10);
-        hours.push({ date, start, end, h, label });
+        hours.push({ date, start: dayoff ? '' : start, end: dayoff ? '' : end, h, label: dayoff ? '🌴 Day Off' : label, dayoff: !!dayoff });
         cur.setDate(cur.getDate() + 1);
       }
       localStorage.setItem('mt_hours', JSON.stringify(hours));
@@ -593,6 +601,7 @@
       document.getElementById('hr-start').value = '';
       document.getElementById('hr-end').value = '';
       document.getElementById('hr-label').value = '';
+      document.getElementById('hr-dayoff').checked = false;
     }
     function deleteHour(i) {
       hours.splice(i, 1);
@@ -616,13 +625,13 @@
       if (!hours.length) { list.innerHTML = '<div class="empty">No hours logged yet</div>'; return; }
       list.innerHTML = [...hours].reverse().map((e,ri) => {
         const i = hours.length-1-ri;
-        return `<div class="tx-item">
+        return `<div class="tx-item" style="${e.dayoff ? 'opacity:0.6' : ''}">
           <div style="flex:1">
             <div class="tx-desc">${e.label}</div>
-            <div class="tx-date">${e.date} · ${e.start}–${e.end}</div>
+            <div class="tx-date">${e.date}${e.start ? ' · '+e.start+'–'+e.end : ''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            <span class="tx-amount" style="color:#a5b4fc">${e.h.toFixed(2)}h</span>
+            <span class="tx-amount" style="color:${e.dayoff ? '#64748b' : '#a5b4fc'}">${e.dayoff ? 'Off' : e.h.toFixed(2)+'h'}</span>
             <button class="tx-edit" onclick="copyHour(${i})">📋</button>
             <button class="tx-delete" onclick="deleteHour(${i})">✕</button>
           </div>
