@@ -217,47 +217,45 @@
   <div class="split">
     <!-- SPENDING -->
     <div>
-      <button class="cal-toggle btn-spending" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.cal-toggle-arrow').textContent=this.nextElementSibling.classList.contains('open')?'▲':'▼'" style="margin-bottom:8px">
-        <span>🧾 Monthly Bills</span><span class="cal-toggle-arrow">▼</span>
-      </button>
-      <div id="bills-dropdown" class="cal-dropdown">
-        <div class="form-card">
-          <div class="form-row">
-            <input id="sp-name" type="text" placeholder="Bill name (e.g. Rent, Netflix)"/>
-            <input id="sp-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
-            <input id="sp-due" type="date" title="Due date"/>
-            <textarea id="sp-note" placeholder="Note (optional)"></textarea>
-            <button class="btn-spending" onclick="addSpending()">+ Add Bill</button>
-          </div>
+      <div class="panel-title">🧾 Monthly Bills</div>
+      <div class="form-card">
+        <div class="form-row">
+          <input id="sp-name" type="text" placeholder="Bill name (e.g. Rent, Netflix)"/>
+          <input id="sp-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
+          <input id="sp-due" type="date" title="Due date"/>
+          <textarea id="sp-note" placeholder="Note (optional)"></textarea>
+          <button class="btn-spending" onclick="addSpending()">+ Add Bill</button>
         </div>
-        <div class="section-header">
-          <span>Bills</span>
-          <button class="clear-btn" onclick="clearSpending()">Clear All</button>
-        </div>
-        <div class="tx-list" id="spending-list"></div>
       </div>
+      <div class="section-header">
+        <button class="cal-toggle btn-spending" onclick="toggleList('bills')" style="flex:1;margin-right:8px;padding:7px 12px">
+          <span id="bills-list-label">Bills (0)</span><span id="bills-list-arrow">▼</span>
+        </button>
+        <button class="clear-btn" onclick="clearSpending()">Clear All</button>
+      </div>
+      <div id="spending-list" class="tx-list" style="display:none"></div>
     </div>
 
     <!-- SAVING -->
     <div>
-      <button class="cal-toggle btn-saving" onclick="this.nextElementSibling.classList.toggle('open');this.querySelector('.cal-toggle-arrow').textContent=this.nextElementSibling.classList.contains('open')?'▲':'▼'" style="margin-bottom:8px">
-        <span>💰 Bi-Weekly Income</span><span class="cal-toggle-arrow">▼</span>
-      </button>
-      <div id="income-dropdown" class="cal-dropdown">
-        <div class="form-card">
-          <div class="form-row">
-            <input id="sv-job" type="text" placeholder="Job income (e.g. Main Job, Side Job)"/>
-            <input id="sv-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
-            <textarea id="sv-note" placeholder="Note (optional)"></textarea>
-            <button class="btn-saving" onclick="addSaving()">+ Add Income</button>
-          </div>
+      <div class="panel-title">💰 Bi-Weekly Income</div>
+      <div class="form-card">
+        <div class="form-row">
+          <input id="sv-job" type="text" placeholder="Job income (e.g. Main Job, Side Job)"/>
+          <input id="sv-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
+          <textarea id="sv-note" placeholder="Note (optional)"></textarea>
+          <button class="btn-saving" onclick="addSaving()">+ Add Income</button>
         </div>
-        <div class="section-header">
-          <span>Income</span>
-          <button class="clear-btn" onclick="clearSaving()">Clear All</button>
-        </div>
-        <div class="tx-list" id="saving-list"></div>
       </div>
+      <div class="section-header">
+        <button class="cal-toggle btn-saving" onclick="toggleList('income')" style="flex:1;margin-right:8px;padding:7px 12px">
+          <span id="income-list-label">Income (0)</span><span id="income-list-arrow">▼</span>
+        </button>
+        <button class="clear-btn" onclick="clearSaving()">Clear All</button>
+      </div>
+      <div id="saving-list" class="tx-list" style="display:none"></div>
+    </div>
+  </div>
     </div>
   </div>
 
@@ -416,6 +414,15 @@
       el.style.color = net < 0 ? '#f87171' : '#4ade80';
     }
 
+    function toggleList(which) {
+      const listId = which === 'bills' ? 'spending-list' : 'saving-list';
+      const arrowId = which + '-list-arrow';
+      const el = document.getElementById(listId);
+      const open = el.style.display === 'none';
+      el.style.display = open ? 'flex' : 'none';
+      document.getElementById(arrowId).textContent = open ? '▲' : '▼';
+    }
+
     // --- SPENDING ---
     function fmtDue(d) {
       if (!d) return '';
@@ -423,15 +430,33 @@
       return new Date(y, m-1, day).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
     function renderSpending() {
+      const total = spending.reduce((s, t) => s + t.amount, 0);
+      document.getElementById('bills-list-label').textContent = `Bills (${spending.length}) · ${fmt(total)}`;
       const list = document.getElementById('spending-list');
-      if (!spending.length) { list.innerHTML = '<div class="empty">No expenses yet</div>'; return; }
-      list.innerHTML = [...spending].reverse().map((t, ri) => {
-        const i = spending.length - 1 - ri;
+      if (!spending.length) { list.innerHTML = '<div class="empty">No bills yet</div>'; return; }
+      // sort by due date if available, else by added date
+      const sorted = [...spending].map((t,i) => ({...t, _i:i})).sort((a,b) => {
+        if (a.due && b.due) return a.due.localeCompare(b.due);
+        if (a.due) return -1; if (b.due) return 1;
+        return 0;
+      });
+      list.innerHTML = sorted.map(t => {
+        const i = t._i;
+        const today_ = new Date(); today_.setHours(0,0,0,0);
+        let dueBadge = '';
+        if (t.due) {
+          const d = new Date(t.due + 'T00:00:00');
+          const diff = Math.round((d - today_) / 86400000);
+          const color = diff <= 0 ? '#f87171' : diff <= 3 ? '#fbbf24' : '#94a3b8';
+          const label = diff < 0 ? 'Overdue' : diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : fmtDue(t.due);
+          dueBadge = `<span style="font-size:0.65rem;background:#0f172a;border-radius:6px;padding:2px 6px;color:${color};margin-left:6px">${label}</span>`;
+        }
         return `<div class="tx-item">
           <div style="flex:1">
-            <div class="tx-desc">${t.desc}</div>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">
+              <div class="tx-desc">${t.desc}</div>${dueBadge}
+            </div>
             ${t.note ? `<div class="tx-note">${t.note.replace(/</g,'&lt;')}</div>` : ''}
-            ${t.due ? `<div class="tx-date">📅 Due: ${fmtDue(t.due)}</div>` : ''}
             <div class="tx-date">Added: ${t.date}</div>
           </div>
           <div style="display:flex;align-items:center">
@@ -468,8 +493,10 @@
 
     // --- SAVING ---
     function renderSaving() {
+      const total = saving.reduce((s, t) => s + t.amount, 0);
+      document.getElementById('income-list-label').textContent = `Income (${saving.length}) · ${fmt(total)}`;
       const list = document.getElementById('saving-list');
-      if (!saving.length) { list.innerHTML = '<div class="empty">No savings yet</div>'; return; }
+      if (!saving.length) { list.innerHTML = '<div class="empty">No income yet</div>'; return; }
       list.innerHTML = [...saving].reverse().map((t, ri) => {
         const i = saving.length - 1 - ri;
         return `<div class="tx-item">
