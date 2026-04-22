@@ -21,10 +21,10 @@
     }
     h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 20px; color: #a5b4fc; }
 
-    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; overflow: hidden; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; overflow: hidden; align-items: start; }
     @media (max-width: 600px) { .split { grid-template-columns: 1fr; } }
 
-    .panel-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
+    .panel-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: #cbd5e1; letter-spacing: 0.02em; }
 
     .balance-card {
       border-radius: 14px; padding: 16px;
@@ -35,7 +35,7 @@
     .balance-card .label { font-size: 0.78rem; opacity: 0.85; margin-bottom: 4px; }
     .balance-card .amount { font-size: 1.8rem; font-weight: 800; }
 
-    .form-card { background: #1e293b; border-radius: 14px; padding: 14px; margin-bottom: 16px; overflow: hidden; }
+    .form-card { background: #1e293b; border-radius: 16px; padding: 16px; margin-bottom: 16px; overflow: hidden; }
     .form-row { display: flex; flex-direction: column; gap: 10px; }
     input, textarea, select {
       background: #0f172a; border: 1px solid #334155;
@@ -319,17 +319,17 @@
       <div class="panel-title">🧾 Monthly Bills</div>
       <div class="form-card">
         <div class="form-row">
-          <input id="sp-name" type="text" placeholder="Bill name (e.g. Rent, Netflix)"/>
-          <input id="sp-amount" type="number" placeholder="Total amount" min="0" step="0.01"/>
+          <input id="sp-name" type="text" placeholder="Bill name"/>
+          <input id="sp-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
           <input id="sp-due" type="date" title="Due date"/>
-          <textarea id="sp-note" placeholder="Note (optional)"></textarea>
+          <textarea id="sp-note" placeholder="Note (optional)" rows="2"></textarea>
           <select id="sp-plan-toggle" onchange="togglePlanFields()" style="font-size:16px">
             <option value="">No plan</option>
             <option value="payment">Payment Plan</option>
             <option value="split">Split Pay</option>
           </select>
           <div id="sp-plan-fields" style="display:none;flex-direction:column;gap:8px">
-            <input id="sp-plan-payment" type="number" placeholder="Payment amount per installment" min="0" step="0.01"/>
+            <input id="sp-plan-payment" type="number" placeholder="Amount per installment" min="0" step="0.01"/>
             <select id="sp-plan-freq">
               <option value="monthly">Monthly</option>
               <option value="biweekly">Bi-Weekly</option>
@@ -339,8 +339,8 @@
           </div>
           <button class="btn-spending" onclick="addSpending()">+ Add Bill</button>
         </div>
-        <div class="section-header" style="margin-top:12px">
-          <button class="cal-toggle btn-spending" onclick="toggleList('bills')" style="flex:1;margin-right:8px;padding:7px 12px">
+        <div class="section-header" style="margin-top:14px">
+          <button class="cal-toggle btn-spending" onclick="toggleList('bills')" style="flex:1;margin-right:8px;padding:10px 12px">
             <span id="bills-list-label">Bills (0)</span><span id="bills-list-arrow">▼</span>
           </button>
           <button class="clear-btn" onclick="clearSpending()">Clear All</button>
@@ -354,13 +354,13 @@
       <div class="panel-title">💰 Bi-Weekly Income</div>
       <div class="form-card">
         <div class="form-row">
-          <input id="sv-job" type="text" placeholder="Job income (e.g. Main Job, Side Job)"/>
+          <input id="sv-job" type="text" placeholder="Income source"/>
           <input id="sv-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
-          <textarea id="sv-note" placeholder="Note (optional)"></textarea>
+          <textarea id="sv-note" placeholder="Note (optional)" rows="2"></textarea>
           <button class="btn-saving" onclick="addSaving()">+ Add Income</button>
         </div>
-        <div class="section-header" style="margin-top:12px">
-          <button class="cal-toggle btn-saving" onclick="toggleList('income')" style="flex:1;margin-right:8px;padding:7px 12px">
+        <div class="section-header" style="margin-top:14px">
+          <button class="cal-toggle btn-saving" onclick="toggleList('income')" style="flex:1;margin-right:8px;padding:10px 12px">
             <span id="income-list-label">Income (0)</span><span id="income-list-arrow">▼</span>
           </button>
           <button class="clear-btn" onclick="clearSaving()">Clear All</button>
