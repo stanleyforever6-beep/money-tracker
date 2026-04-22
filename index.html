@@ -323,9 +323,11 @@
           <input id="sp-amount" type="number" placeholder="Total amount" min="0" step="0.01"/>
           <input id="sp-due" type="date" title="Due date"/>
           <textarea id="sp-note" placeholder="Note (optional)"></textarea>
-          <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:#94a3b8;cursor:pointer">
-            <input id="sp-plan-toggle" type="checkbox" onchange="togglePlanFields()" style="width:auto;accent-color:#6366f1"/> Payment Plan
-          </label>
+          <select id="sp-plan-toggle" onchange="togglePlanFields()" style="font-size:16px">
+            <option value="">No plan</option>
+            <option value="payment">Payment Plan</option>
+            <option value="split">Split Pay</option>
+          </select>
           <div id="sp-plan-fields" style="display:none;flex-direction:column;gap:8px">
             <input id="sp-plan-payment" type="number" placeholder="Payment amount per installment" min="0" step="0.01"/>
             <select id="sp-plan-freq">
@@ -584,6 +586,10 @@
         let planHtml = '';
         if (t.plan) {
           const p = t.plan;
+          const pType = p.type || 'payment';
+          const pLabel = pType === 'split' ? 'Split Pay' : 'Payment Plan';
+          const badge = pType === 'split' ? 'SPLIT' : 'PLAN';
+          const badgeColor = pType === 'split' ? 'background:#1e3a5f;color:#7dd3fc' : 'background:#312e81;color:#a5b4fc';
           const pct = Math.min(p.paid / t.amount * 100, 100);
           const remaining = Math.max(t.amount - p.paid, 0);
           const paymentsLeft = remaining > 0 ? Math.ceil(remaining / p.payment) : 0;
@@ -615,7 +621,7 @@
           <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%;gap:10px">
             <div style="flex:1">
               <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">
-                <div class="tx-desc">${t.desc}</div>${dueBadge}${t.plan?'<span style="font-size:0.6rem;background:#312e81;color:#a5b4fc;border-radius:4px;padding:1px 5px;margin-left:4px">PLAN</span>':''}
+                <div class="tx-desc">${t.desc}</div>${dueBadge}${t.plan?`<span style="font-size:0.6rem;${t.plan.type==='split'?'background:#1e3a5f;color:#7dd3fc':'background:#312e81;color:#a5b4fc'};border-radius:4px;padding:1px 5px;margin-left:4px">${t.plan.type==='split'?'SPLIT':'PLAN'}</span>`:''}
               </div>
               ${t.note ? `<div class="tx-note">${t.note.replace(/</g,'&lt;')}</div>` : ''}
               <div class="tx-date">Added: ${t.date}</div>
@@ -637,10 +643,12 @@
       const due = document.getElementById('sp-due').value;
       if (!name || isNaN(amount) || amount <= 0) return;
       const entry = { desc: name, amount, note, due, date: today() };
-      if (document.getElementById('sp-plan-toggle').checked) {
+      const planType = document.getElementById('sp-plan-toggle').value;
+      if (planType) {
         const pymt = parseFloat(document.getElementById('sp-plan-payment').value);
         if (!isNaN(pymt) && pymt > 0) {
           entry.plan = {
+            type: planType,
             payment: pymt,
             freq: document.getElementById('sp-plan-freq').value,
             start: document.getElementById('sp-plan-start').value,
@@ -655,7 +663,7 @@
       document.getElementById('sp-amount').value = '';
       document.getElementById('sp-due').value = '';
       document.getElementById('sp-note').value = '';
-      document.getElementById('sp-plan-toggle').checked = false;
+      document.getElementById('sp-plan-toggle').value = '';
       togglePlanFields();
       document.getElementById('sp-plan-payment').value = '';
       document.getElementById('sp-plan-start').value = '';
@@ -671,8 +679,8 @@
     }
 
     function togglePlanFields() {
-      const on = document.getElementById('sp-plan-toggle').checked;
-      document.getElementById('sp-plan-fields').style.display = on ? 'flex' : 'none';
+      const val = document.getElementById('sp-plan-toggle').value;
+      document.getElementById('sp-plan-fields').style.display = val ? 'flex' : 'none';
     }
     function makePayment(i) {
       const t = spending[i];
