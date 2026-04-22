@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <meta name="theme-color" content="#6366f1"/>
   <meta name="description" content="Money Tracker - track your bills, income, and work hours in one place."/>
   <meta name="robots" content="index, follow"/>
@@ -11,14 +11,17 @@
   <title>Money Tracker</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #0f172a; color: #e2e8f0;
-      min-height: 100dvh; padding: 20px 16px 100px;
+      min-height: 100dvh; padding: 16px 12px 90px;
+      -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
     }
     h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 20px; color: #a5b4fc; }
 
-    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; overflow: hidden; }
     @media (max-width: 600px) { .split { grid-template-columns: 1fr; } }
 
     .panel-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
@@ -32,19 +35,22 @@
     .balance-card .label { font-size: 0.78rem; opacity: 0.85; margin-bottom: 4px; }
     .balance-card .amount { font-size: 1.8rem; font-weight: 800; }
 
-    .form-card { background: #1e293b; border-radius: 14px; padding: 16px; margin-bottom: 16px; }
-    .form-row { display: flex; flex-direction: column; gap: 8px; }
+    .form-card { background: #1e293b; border-radius: 14px; padding: 14px; margin-bottom: 16px; overflow: hidden; }
+    .form-row { display: flex; flex-direction: column; gap: 10px; }
     input, textarea, select {
       background: #0f172a; border: 1px solid #334155;
       border-radius: 10px; color: #e2e8f0;
-      font-size: 0.9rem; padding: 10px 12px;
-      width: 100%; outline: none; font-family: inherit;
+      font-size: 16px; padding: 12px;
+      width: 100%; max-width: 100%; outline: none; font-family: inherit;
+      -webkit-appearance: none; appearance: none;
     }
     input:focus, textarea:focus { border-color: #6366f1; }
+    input[type="date"] { overflow: hidden; }
     textarea { resize: vertical; min-height: 60px; }
     button {
       border: none; border-radius: 10px; cursor: pointer;
-      font-size: 0.9rem; font-weight: 600; padding: 11px;
+      font-size: 0.95rem; font-weight: 600; padding: 14px;
+      min-height: 44px;
     }
     .btn-spending { background: #7f1d1d; color: #f87171; }
     .btn-saving   { background: #166534; color: #4ade80; }
@@ -56,28 +62,34 @@
     .section-header span { font-size: 0.85rem; color: #cbd5e1; font-weight: 600; }
     .clear-btn {
       background: none; border: 1px solid #334155;
-      color: #94a3b8; font-size: 0.72rem;
-      padding: 4px 8px; border-radius: 8px; cursor: pointer;
+      color: #94a3b8; font-size: 0.78rem;
+      padding: 8px 12px; border-radius: 8px; cursor: pointer;
+      min-height: 36px;
     }
     .tx-list { display: flex; flex-direction: column; gap: 8px; }
     .tx-item {
       background: #1e293b; border-radius: 12px;
-      padding: 12px 14px; display: flex;
+      padding: 14px; display: flex;
       justify-content: space-between; align-items: flex-start;
+      gap: 10px;
     }
-    .tx-desc { font-size: 0.88rem; font-weight: 500; }
-    .tx-note { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; white-space: pre-wrap; word-break: break-word; }
-    .tx-date { font-size: 0.7rem; color: #64748b; margin-top: 2px; }
-    .tx-amount { font-size: 0.95rem; font-weight: 700; white-space: nowrap; }
+    .tx-desc { font-size: 0.92rem; font-weight: 500; }
+    .tx-note { font-size: 0.8rem; color: #94a3b8; margin-top: 3px; white-space: pre-wrap; word-break: break-word; }
+    .tx-date { font-size: 0.75rem; color: #64748b; margin-top: 3px; }
+    .tx-amount { font-size: 1rem; font-weight: 700; white-space: nowrap; }
     .tx-amount.neg { color: #f87171; }
     .tx-amount.pos { color: #4ade80; }
     .tx-delete {
       background: none; border: none; color: #475569;
-      font-size: 1rem; cursor: pointer; padding: 0 0 0 10px;
+      font-size: 1.2rem; cursor: pointer; padding: 8px;
+      min-width: 36px; min-height: 36px;
+      display: flex; align-items: center; justify-content: center;
     }
     .tx-edit {
       background: none; border: none; color: #6366f1;
-      font-size: 0.8rem; cursor: pointer; padding: 0 0 0 8px;
+      font-size: 1rem; cursor: pointer; padding: 8px;
+      min-width: 36px; min-height: 36px;
+      display: flex; align-items: center; justify-content: center;
     }
     .empty { text-align: center; color: #475569; font-size: 0.85rem; padding: 24px 0; }
 
@@ -85,19 +97,20 @@
     #edit-modal {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.7); z-index: 300;
-      align-items: center; justify-content: center; padding: 20px;
+      align-items: flex-end; justify-content: center; padding: 0;
     }
     #edit-modal.open { display: flex; }
     .modal-box {
-      background: #1e293b; border-radius: 16px;
-      padding: 20px; width: 100%; max-width: 400px;
-      display: flex; flex-direction: column; gap: 10px;
+      background: #1e293b; border-radius: 16px 16px 0 0;
+      padding: 24px 16px env(safe-area-inset-bottom, 16px);
+      width: 100%; max-width: 500px;
+      display: flex; flex-direction: column; gap: 12px;
     }
-    .modal-box h3 { font-size: 1rem; color: #a5b4fc; margin-bottom: 4px; }
+    .modal-box h3 { font-size: 1.05rem; color: #a5b4fc; margin-bottom: 4px; }
 
     /* Floating button */
     #fab {
-      position: fixed; bottom: 72px; right: 20px;
+      position: fixed; bottom: 76px; right: 16px;
       width: 56px; height: 56px; border-radius: 50%;
       background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff; font-size: 1.4rem;
@@ -111,20 +124,22 @@
     #overview-overlay {
       display: none; position: fixed; inset: 0;
       background: #0f172a; z-index: 200;
-      overflow-y: auto; padding: 24px 20px 40px;
+      overflow-y: auto; padding: 20px 12px 40px;
+      -webkit-overflow-scrolling: touch;
     }
     #overview-overlay.open { display: block; }
     .ov-close {
       background: #1e293b; border: none; border-radius: 10px;
-      color: #94a3b8; font-size: 0.85rem; font-weight: 600;
-      padding: 8px 16px; cursor: pointer; margin-bottom: 20px;
+      color: #94a3b8; font-size: 0.9rem; font-weight: 600;
+      padding: 10px 18px; cursor: pointer; margin-bottom: 20px;
+      min-height: 44px;
     }
     .ov-header { font-size: 1.3rem; font-weight: 800; color: #a5b4fc; margin-bottom: 20px; }
-    .ov-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 24px; }
-    .ov-stat { background: #1e293b; border-radius: 12px; padding: 14px; text-align: center; }
-    .ov-stat .label { font-size: 0.72rem; color: #94a3b8; margin-bottom: 4px; }
-    .ov-stat .val { font-size: 1.1rem; font-weight: 700; }
-    .chart-wrap { background: #1e293b; border-radius: 16px; padding: 16px; margin-bottom: 24px; }
+    .ov-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 24px; }
+    .ov-stat { background: #1e293b; border-radius: 12px; padding: 12px 8px; text-align: center; }
+    .ov-stat .label { font-size: 0.7rem; color: #94a3b8; margin-bottom: 4px; }
+    .ov-stat .val { font-size: 1rem; font-weight: 700; }
+    .chart-wrap { background: #1e293b; border-radius: 16px; padding: 14px; margin-bottom: 24px; }
     .chart-wrap h3 { font-size: 0.95rem; color: #cbd5e1; margin-bottom: 14px; }
     canvas { width: 100% !important; display: block; }
 
@@ -132,39 +147,44 @@
     #bottom-nav {
       position: fixed; bottom: 0; left: 0; right: 0;
       background: #1e293b; border-top: 1px solid #334155;
-      display: flex; z-index: 150; height: 60px;
+      display: flex; z-index: 150;
+      height: calc(60px + env(safe-area-inset-bottom, 0px));
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
     .nav-tab {
       flex: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       gap: 3px; background: none; border: none;
-      color: #64748b; font-size: 0.65rem; font-weight: 600;
+      color: #64748b; font-size: 0.72rem; font-weight: 600;
       cursor: pointer; padding: 0;
+      min-height: 44px;
     }
-    .nav-tab .nav-icon { font-size: 1.3rem; }
+    .nav-tab .nav-icon { font-size: 1.4rem; }
     .nav-tab.active { color: #a5b4fc; }
 
     /* Hours overlay */
     #hours-overlay {
       display: none; position: fixed; inset: 0;
       background: #0f172a; z-index: 140;
-      overflow-y: auto; padding: 20px 16px 80px;
+      overflow-y: auto; padding: 16px 12px 90px;
+      -webkit-overflow-scrolling: touch;
     }
     #hours-overlay.open { display: block; }
-    .hr-stat { background: #1e293b; border-radius: 12px; padding: 14px; text-align: center; }
+    .hr-stat { background: #1e293b; border-radius: 12px; padding: 12px 8px; text-align: center; }
     .hr-stat .label { font-size: 0.72rem; color: #94a3b8; margin-bottom: 4px; }
-    .hr-stat .val { font-size: 1.2rem; font-weight: 700; color: #a5b4fc; }
+    .hr-stat .val { font-size: 1.15rem; font-weight: 700; color: #a5b4fc; }
 
     /* Calendar */
     .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .cal-header button { background: #0f172a; border: none; color: #cbd5e1; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
-    .cal-month { font-size: 0.9rem; font-weight: 700; color: #cbd5e1; }
-    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 10px; }
-    .cal-day-label { text-align: center; font-size: 0.62rem; color: #64748b; font-weight: 600; padding: 2px 0; }
+    .cal-header button { background: #0f172a; border: none; color: #cbd5e1; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; min-height: 36px; }
+    .cal-month { font-size: 0.95rem; font-weight: 700; color: #cbd5e1; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 10px; overflow: hidden; }
+    .cal-day-label { text-align: center; font-size: 0.68rem; color: #64748b; font-weight: 600; padding: 4px 0; }
     .cal-day {
       aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
-      background: #0f172a; border-radius: 6px; font-size: 0.72rem;
+      background: #0f172a; border-radius: 8px; font-size: 0.82rem;
       cursor: pointer; user-select: none;
+      min-width: 0;
     }
     .cal-day.other-month { opacity: 0.25; }
     .cal-day.selected { background: #4f46e5; color: #fff; font-weight: 700; }
@@ -174,14 +194,90 @@
     /* Calendar dropdown */
     .cal-toggle {
       width: 100%; background: #0f172a; border: 1px solid #334155;
-      border-radius: 10px; color: #e2e8f0; font-size: 0.9rem;
-      font-weight: 600; padding: 10px 12px; cursor: pointer;
+      border-radius: 10px; color: #e2e8f0; font-size: 0.95rem;
+      font-weight: 600; padding: 12px; cursor: pointer;
       text-align: left; display: flex; justify-content: space-between;
+      min-height: 44px;
     }
     #cal-dropdown { display: none; margin-top: 8px; }
     #cal-dropdown.open { display: block; }
     .cal-dropdown { display: none; margin-top: 8px; }
     .cal-dropdown.open { display: block; }
+
+    /* Mobile-specific tweaks */
+    @media (max-width: 400px) {
+      .ov-stats { grid-template-columns: 1fr; }
+      .ov-stat { padding: 10px; }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        background: linear-gradient(180deg, #0c1222 0%, #162032 100%);
+        padding: 20px 14px 94px;
+      }
+      h1 { font-size: 1.5rem; text-align: center; margin-bottom: 24px; }
+
+      .form-card {
+        background: rgba(30,41,59,0.85);
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(99,102,241,0.12);
+        border-radius: 18px; padding: 16px;
+      }
+      .panel-title {
+        font-size: 1.05rem; text-align: center;
+        padding: 8px 0; margin-bottom: 14px;
+        border-bottom: 1px solid #1e293b;
+      }
+      input, textarea, select {
+        background: rgba(15,23,42,0.7);
+        border: 1px solid rgba(51,65,85,0.6);
+        border-radius: 12px; padding: 14px;
+      }
+      button {
+        border-radius: 12px;
+      }
+      .btn-spending { background: rgba(127,29,29,0.8); }
+      .btn-saving { background: rgba(22,101,52,0.8); }
+
+      .tx-item {
+        background: rgba(30,41,59,0.7);
+        border: 1px solid rgba(51,65,85,0.3);
+        border-radius: 14px; padding: 14px;
+      }
+
+      #bottom-nav {
+        background: rgba(30,41,59,0.95);
+        backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid rgba(99,102,241,0.15);
+      }
+      .nav-tab { font-size: 0.7rem; }
+      .nav-tab .nav-icon { font-size: 1.5rem; }
+      .nav-tab.active { color: #818cf8; }
+
+      #fab {
+        width: 52px; height: 52px;
+        bottom: 78px; right: 14px;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(99,102,241,0.4);
+      }
+
+      .section-header { margin-bottom: 12px; }
+      .clear-btn {
+        border-radius: 20px; padding: 8px 14px;
+        border-color: rgba(51,65,85,0.5);
+      }
+      .cal-toggle { border-radius: 12px; }
+
+      .hr-stat, .ov-stat {
+        background: rgba(30,41,59,0.7);
+        border: 1px solid rgba(51,65,85,0.3);
+        border-radius: 14px;
+      }
+      .chart-wrap {
+        background: rgba(30,41,59,0.7);
+        border: 1px solid rgba(51,65,85,0.3);
+      }
+    }
   </style>
 </head>
 <body>
@@ -199,13 +295,13 @@
   </div>
 
   <!-- Budget goal -->
-  <div style="background:#1e293b;border-radius:14px;padding:14px;margin-bottom:20px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+  <div style="background:#1e293b;border-radius:14px;padding:14px;margin-bottom:20px;overflow:hidden">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
       <span style="font-size:0.8rem;color:#94a3b8;font-weight:600">Monthly Bill Budget</span>
       <div style="display:flex;gap:6px;align-items:center">
         <input id="budget-input" type="number" placeholder="Set limit" min="0" step="1"
-          style="width:100px;padding:4px 8px;font-size:0.8rem;border-radius:8px"/>
-        <button onclick="saveBudget()" style="background:#4f46e5;color:#fff;padding:4px 10px;font-size:0.78rem;border-radius:8px">Set</button>
+          style="width:100px;padding:4px 8px;font-size:16px;border-radius:8px"/>
+        <button onclick="saveBudget()" style="background:#4f46e5;color:#fff;padding:8px 14px;font-size:0.85rem;border-radius:8px;min-height:36px">Set</button>
       </div>
     </div>
     <div style="background:#0f172a;border-radius:8px;height:10px;overflow:hidden">
@@ -224,19 +320,31 @@
       <div class="form-card">
         <div class="form-row">
           <input id="sp-name" type="text" placeholder="Bill name (e.g. Rent, Netflix)"/>
-          <input id="sp-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
+          <input id="sp-amount" type="number" placeholder="Total amount" min="0" step="0.01"/>
           <input id="sp-due" type="date" title="Due date"/>
           <textarea id="sp-note" placeholder="Note (optional)"></textarea>
+          <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;color:#94a3b8;cursor:pointer">
+            <input id="sp-plan-toggle" type="checkbox" onchange="togglePlanFields()" style="width:auto;accent-color:#6366f1"/> Payment Plan
+          </label>
+          <div id="sp-plan-fields" style="display:none;flex-direction:column;gap:8px">
+            <input id="sp-plan-payment" type="number" placeholder="Payment amount per installment" min="0" step="0.01"/>
+            <select id="sp-plan-freq">
+              <option value="monthly">Monthly</option>
+              <option value="biweekly">Bi-Weekly</option>
+              <option value="weekly">Weekly</option>
+            </select>
+            <input id="sp-plan-start" type="date" title="First payment date"/>
+          </div>
           <button class="btn-spending" onclick="addSpending()">+ Add Bill</button>
         </div>
+        <div class="section-header" style="margin-top:12px">
+          <button class="cal-toggle btn-spending" onclick="toggleList('bills')" style="flex:1;margin-right:8px;padding:7px 12px">
+            <span id="bills-list-label">Bills (0)</span><span id="bills-list-arrow">▼</span>
+          </button>
+          <button class="clear-btn" onclick="clearSpending()">Clear All</button>
+        </div>
+        <div id="spending-list" class="tx-list" style="display:none"></div>
       </div>
-      <div class="section-header">
-        <button class="cal-toggle btn-spending" onclick="toggleList('bills')" style="flex:1;margin-right:8px;padding:7px 12px">
-          <span id="bills-list-label">Bills (0)</span><span id="bills-list-arrow">▼</span>
-        </button>
-        <button class="clear-btn" onclick="clearSpending()">Clear All</button>
-      </div>
-      <div id="spending-list" class="tx-list" style="display:none"></div>
     </div>
 
     <!-- SAVING -->
@@ -249,16 +357,14 @@
           <textarea id="sv-note" placeholder="Note (optional)"></textarea>
           <button class="btn-saving" onclick="addSaving()">+ Add Income</button>
         </div>
+        <div class="section-header" style="margin-top:12px">
+          <button class="cal-toggle btn-saving" onclick="toggleList('income')" style="flex:1;margin-right:8px;padding:7px 12px">
+            <span id="income-list-label">Income (0)</span><span id="income-list-arrow">▼</span>
+          </button>
+          <button class="clear-btn" onclick="clearSaving()">Clear All</button>
+        </div>
+        <div id="saving-list" class="tx-list" style="display:none"></div>
       </div>
-      <div class="section-header">
-        <button class="cal-toggle btn-saving" onclick="toggleList('income')" style="flex:1;margin-right:8px;padding:7px 12px">
-          <span id="income-list-label">Income (0)</span><span id="income-list-arrow">▼</span>
-        </button>
-        <button class="clear-btn" onclick="clearSaving()">Clear All</button>
-      </div>
-      <div id="saving-list" class="tx-list" style="display:none"></div>
-    </div>
-  </div>
     </div>
   </div>
 
@@ -270,6 +376,22 @@
       <input id="edit-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
       <input id="edit-due" type="date" title="Due date" style="display:none"/>
       <textarea id="edit-note" placeholder="Note (optional)"></textarea>
+      <div id="edit-plan-section" style="display:none">
+        <div style="font-size:0.8rem;color:#94a3b8;font-weight:600;margin-bottom:6px">Payment Plan</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <input id="edit-plan-payment" type="number" placeholder="Payment amount per installment" min="0" step="0.01"/>
+          <select id="edit-plan-freq">
+            <option value="monthly">Monthly</option>
+            <option value="biweekly">Bi-Weekly</option>
+            <option value="weekly">Weekly</option>
+          </select>
+          <input id="edit-plan-start" type="date" title="First payment date"/>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:0.78rem;color:#64748b">Paid so far: $</span>
+            <input id="edit-plan-paid" type="number" min="0" step="0.01" style="flex:1"/>
+          </div>
+        </div>
+      </div>
       <div style="display:flex;gap:8px">
         <button onclick="saveEdit()" style="flex:1;background:#4f46e5;color:#fff">Save</button>
         <button onclick="closeEdit()" style="flex:1;background:#334155;color:#94a3b8">Cancel</button>
@@ -355,14 +477,14 @@
 
   <!-- Bottom Nav -->
   <!-- Logged Overlay -->
-  <div id="logged-overlay" style="display:none;position:fixed;inset:0;background:#0f172a;z-index:140;overflow-y:auto;padding:20px 16px 80px">
+  <div id="logged-overlay" style="display:none;position:fixed;inset:0;background:#0f172a;z-index:140;overflow-y:auto;padding:16px 12px 90px;-webkit-overflow-scrolling:touch">
     <h1 style="font-size:1.4rem;font-weight:700;color:#a5b4fc;margin-bottom:16px">📋 Logged</h1>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-      <button id="lf-all"    onclick="setLogFilter('all')"    style="background:#4f46e5;color:#fff;padding:6px 14px;font-size:0.8rem">All</button>
-      <button id="lf-bills"  onclick="setLogFilter('bills')"  style="background:#1e293b;color:#94a3b8;padding:6px 14px;font-size:0.8rem">🧾 Bills</button>
-      <button id="lf-income" onclick="setLogFilter('income')" style="background:#1e293b;color:#94a3b8;padding:6px 14px;font-size:0.8rem">💰 Income</button>
-      <button id="lf-hours"  onclick="setLogFilter('hours')"  style="background:#1e293b;color:#94a3b8;padding:6px 14px;font-size:0.8rem">⏱️ Hours</button>
-      <button onclick="exportCSV()" style="background:#0f172a;color:#94a3b8;border:1px solid #334155;padding:6px 14px;font-size:0.8rem;margin-left:auto">⬇️ Export CSV</button>
+      <button id="lf-all"    onclick="setLogFilter('all')"    style="background:#4f46e5;color:#fff;padding:10px 16px;font-size:0.85rem;border-radius:10px;min-height:40px">All</button>
+      <button id="lf-bills"  onclick="setLogFilter('bills')"  style="background:#1e293b;color:#94a3b8;padding:10px 16px;font-size:0.85rem;border-radius:10px;min-height:40px">🧾 Bills</button>
+      <button id="lf-income" onclick="setLogFilter('income')" style="background:#1e293b;color:#94a3b8;padding:10px 16px;font-size:0.85rem;border-radius:10px;min-height:40px">💰 Income</button>
+      <button id="lf-hours"  onclick="setLogFilter('hours')"  style="background:#1e293b;color:#94a3b8;padding:10px 16px;font-size:0.85rem;border-radius:10px;min-height:40px">⏱️ Hours</button>
+      <button onclick="exportCSV()" style="background:#0f172a;color:#94a3b8;border:1px solid #334155;padding:10px 16px;font-size:0.85rem;border-radius:10px;margin-left:auto;min-height:40px">⬇️ Export</button>
     </div>
     <div class="section-header" style="margin-top:8px">
       <button class="cal-toggle" onclick="toggleList('logged')" style="flex:1;padding:7px 12px;background:#1e293b;border-color:#334155">
@@ -443,7 +565,6 @@
       document.getElementById('bills-list-label').textContent = `Bills (${spending.length}) · ${fmt(total)}`;
       const list = document.getElementById('spending-list');
       if (!spending.length) { list.innerHTML = '<div class="empty">No bills yet</div>'; return; }
-      // sort by due date if available, else by added date
       const sorted = [...spending].map((t,i) => ({...t, _i:i})).sort((a,b) => {
         if (a.due && b.due) return a.due.localeCompare(b.due);
         if (a.due) return -1; if (b.due) return 1;
@@ -460,19 +581,52 @@
           const label = diff < 0 ? 'Overdue' : diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : fmtDue(t.due);
           dueBadge = `<span style="font-size:0.65rem;background:#0f172a;border-radius:6px;padding:2px 6px;color:${color};margin-left:6px">${label}</span>`;
         }
-        return `<div class="tx-item">
-          <div style="flex:1">
-            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">
-              <div class="tx-desc">${t.desc}</div>${dueBadge}
+        let planHtml = '';
+        if (t.plan) {
+          const p = t.plan;
+          const pct = Math.min(p.paid / t.amount * 100, 100);
+          const remaining = Math.max(t.amount - p.paid, 0);
+          const paymentsLeft = remaining > 0 ? Math.ceil(remaining / p.payment) : 0;
+          const freqLabel = p.freq === 'biweekly' ? 'bi-weekly' : p.freq;
+          let nextDate = '';
+          if (p.start && remaining > 0) {
+            const s = new Date(p.start + 'T00:00:00');
+            const days = p.freq === 'weekly' ? 7 : p.freq === 'biweekly' ? 14 : 30;
+            const paymentsMade = p.payment > 0 ? Math.floor(p.paid / p.payment) : 0;
+            s.setDate(s.getDate() + days * paymentsMade);
+            if (s < today_) s.setDate(s.getDate() + days);
+            nextDate = s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          }
+          planHtml = `<div style="margin-top:8px;background:#0f172a;border-radius:8px;padding:8px 10px">
+            <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94a3b8;margin-bottom:4px">
+              <span>📋 ${fmt(p.payment)}/${freqLabel}</span>
+              <span>${fmt(p.paid)} / ${fmt(t.amount)}</span>
             </div>
-            ${t.note ? `<div class="tx-note">${t.note.replace(/</g,'&lt;')}</div>` : ''}
-            <div class="tx-date">Added: ${t.date}</div>
+            <div style="background:#334155;border-radius:4px;height:6px;overflow:hidden;margin-bottom:6px">
+              <div style="height:100%;border-radius:4px;background:${pct>=100?'#4ade80':'#6366f1'};width:${pct}%;transition:width 0.3s"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.7rem">
+              <span style="color:#64748b">${pct>=100?'✅ Paid off':paymentsLeft+' payments left'+(nextDate?' · Next: '+nextDate:'')}</span>
+              ${pct<100?`<button onclick="makePayment(${i})" style="background:#4f46e5;color:#fff;padding:4px 10px;font-size:0.72rem;border-radius:6px;min-height:28px">Pay ${fmt(p.payment)}</button>`:''}
+            </div>
+          </div>`;
+        }
+        return `<div class="tx-item" style="flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%;gap:10px">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">
+                <div class="tx-desc">${t.desc}</div>${dueBadge}${t.plan?'<span style="font-size:0.6rem;background:#312e81;color:#a5b4fc;border-radius:4px;padding:1px 5px;margin-left:4px">PLAN</span>':''}
+              </div>
+              ${t.note ? `<div class="tx-note">${t.note.replace(/</g,'&lt;')}</div>` : ''}
+              <div class="tx-date">Added: ${t.date}</div>
+            </div>
+            <div style="display:flex;align-items:center">
+              <span class="tx-amount neg">−${fmt(t.amount)}</span>
+              <button class="tx-edit" onclick="editItem('spending',${i})">✏️</button>
+              <button class="tx-delete" onclick="deleteSpending(${i})">✕</button>
+            </div>
           </div>
-          <div style="display:flex;align-items:center">
-            <span class="tx-amount neg">−${fmt(t.amount)}</span>
-            <button class="tx-edit" onclick="editItem('spending',${i})">✏️</button>
-            <button class="tx-delete" onclick="deleteSpending(${i})">✕</button>
-          </div>
+          ${planHtml}
         </div>`;
       }).join('');
     }
@@ -482,13 +636,29 @@
       const note = document.getElementById('sp-note').value.trim();
       const due = document.getElementById('sp-due').value;
       if (!name || isNaN(amount) || amount <= 0) return;
-      spending.push({ desc: name, amount, note, due, date: today() });
+      const entry = { desc: name, amount, note, due, date: today() };
+      if (document.getElementById('sp-plan-toggle').checked) {
+        const pymt = parseFloat(document.getElementById('sp-plan-payment').value);
+        if (!isNaN(pymt) && pymt > 0) {
+          entry.plan = {
+            payment: pymt,
+            freq: document.getElementById('sp-plan-freq').value,
+            start: document.getElementById('sp-plan-start').value,
+            paid: 0
+          };
+        }
+      }
+      spending.push(entry);
       localStorage.setItem('mt_spending', JSON.stringify(spending));
       renderSpending(); renderCombined(); renderBudget(); renderDueAlerts();
       document.getElementById('sp-name').value = '';
       document.getElementById('sp-amount').value = '';
       document.getElementById('sp-due').value = '';
       document.getElementById('sp-note').value = '';
+      document.getElementById('sp-plan-toggle').checked = false;
+      togglePlanFields();
+      document.getElementById('sp-plan-payment').value = '';
+      document.getElementById('sp-plan-start').value = '';
     }
     function deleteSpending(i) {
       spending.splice(i, 1);
@@ -498,6 +668,18 @@
     function clearSpending() {
       if (!confirm('Clear all expenses?')) return;
       spending = []; localStorage.setItem('mt_spending', JSON.stringify(spending)); renderSpending(); renderCombined(); renderBudget(); renderDueAlerts();
+    }
+
+    function togglePlanFields() {
+      const on = document.getElementById('sp-plan-toggle').checked;
+      document.getElementById('sp-plan-fields').style.display = on ? 'flex' : 'none';
+    }
+    function makePayment(i) {
+      const t = spending[i];
+      if (!t.plan) return;
+      t.plan.paid = Math.min(t.plan.paid + t.plan.payment, t.amount);
+      localStorage.setItem('mt_spending', JSON.stringify(spending));
+      renderSpending();
     }
 
     // --- SAVING ---
@@ -556,6 +738,16 @@
       const dueField = document.getElementById('edit-due');
       dueField.style.display = type === 'spending' ? '' : 'none';
       dueField.value = t.due || '';
+      const planSec = document.getElementById('edit-plan-section');
+      if (type === 'spending' && t.plan) {
+        planSec.style.display = 'block';
+        document.getElementById('edit-plan-payment').value = t.plan.payment;
+        document.getElementById('edit-plan-freq').value = t.plan.freq;
+        document.getElementById('edit-plan-start').value = t.plan.start || '';
+        document.getElementById('edit-plan-paid').value = t.plan.paid || 0;
+      } else {
+        planSec.style.display = 'none';
+      }
       document.getElementById('edit-modal').classList.add('open');
     }
     function saveEdit() {
@@ -565,6 +757,12 @@
       if (!desc || isNaN(amount) || amount <= 0) return;
       if (editType === 'spending') {
         spending[editIndex] = { ...spending[editIndex], desc, amount, note, due: document.getElementById('edit-due').value };
+        if (spending[editIndex].plan) {
+          spending[editIndex].plan.payment = parseFloat(document.getElementById('edit-plan-payment').value) || spending[editIndex].plan.payment;
+          spending[editIndex].plan.freq = document.getElementById('edit-plan-freq').value;
+          spending[editIndex].plan.start = document.getElementById('edit-plan-start').value;
+          spending[editIndex].plan.paid = parseFloat(document.getElementById('edit-plan-paid').value) || 0;
+        }
         localStorage.setItem('mt_spending', JSON.stringify(spending));
         renderSpending(); renderCombined(); renderBudget(); renderDueAlerts();
       } else {
