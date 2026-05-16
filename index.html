@@ -945,6 +945,7 @@
       const hrs  = parseFloat(document.getElementById('pc-hours').value);
       const rate = parseFloat(document.getElementById('pc-rate').value);
       if (isNaN(hrs) || isNaN(rate) || hrs <= 0 || rate <= 0) return;
+      savePayRate(rate);
       lastGross = hrs * rate;
       document.getElementById('pc-gross').textContent  = '$' + lastGross.toFixed(2);
       document.getElementById('pc-weekly').textContent = '$' + (lastGross / 2).toFixed(2);
@@ -1296,10 +1297,24 @@
     // --- EST PAY ---
     function updateEstPay() {
       const rate = parseFloat(document.getElementById('hr-rate-stored').value) || 0;
-      localStorage.setItem('mt_hr_rate', rate);
+      savePayRate(rate);
       const now = new Date();
       const monthH = hours.filter(e => { const d=new Date(e.date+'T12:00:00'); return !e.dayoff && d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear(); }).reduce((s,e)=>s+e.h,0);
       document.getElementById('hr-est-pay').textContent = '$' + (monthH * rate).toFixed(2);
+    }
+
+    function savePayRate(rate) {
+      localStorage.setItem('mt_pay_rate', rate);
+      // sync all rate fields
+      ['hr-rate-stored','pc-rate','sm-rate'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && parseFloat(el.value) !== rate) el.value = rate || '';
+      });
+    }
+    function loadPayRate() {
+      const r = parseFloat(localStorage.getItem('mt_pay_rate') || localStorage.getItem('mt_hr_rate') || '0');
+      if (r) savePayRate(r);
+      return r;
     }
 
     // --- SCAN FAB (single tap = camera, double tap = stubs manager) ---
@@ -1325,8 +1340,7 @@
       document.getElementById('scan-modal-preview').style.display = 'none';
       document.getElementById('scan-modal-status').style.display = 'none';
       document.getElementById('scan-modal').classList.add('open');
-      // restore saved rate
-      const r = localStorage.getItem('mt_scan_rate');
+      const r = localStorage.getItem('mt_pay_rate');
       if (r) document.getElementById('sm-rate').value = r;
     }
     function closeScanModal() {
@@ -1338,8 +1352,8 @@
     });
 
     function saveScanRate() {
-      const r = document.getElementById('sm-rate').value;
-      localStorage.setItem('mt_scan_rate', r);
+      const r = parseFloat(document.getElementById('sm-rate').value) || 0;
+      savePayRate(r);
       updateScanEst();
     }
     function updateScanEst() {
@@ -1559,8 +1573,7 @@
     renderHours();
     renderBudget();
     renderDueAlerts();
-    const storedRate = localStorage.getItem('mt_hr_rate');
-    if (storedRate) { document.getElementById('hr-rate-stored').value = storedRate; updateEstPay(); }
+    loadPayRate(); updateEstPay();
     calInit(); navigator.serviceWorker.register('./sw.js');
   </script>
 </body>
