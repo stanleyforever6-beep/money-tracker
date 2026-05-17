@@ -8,6 +8,11 @@
   <meta name="robots" content="index, follow"/>
   <link rel="canonical" href="https://stanleyforever6-beep.github.io/money-tracker/"/>
   <link rel="manifest" href="manifest.json"/>
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Money Tracker"/>
+  <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
   <title>Money Tracker</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -120,19 +125,45 @@
       z-index: 100;
     }
 
-    /* Scanner bubble */
-    #scan-fab {
-      position: fixed; top: 16px; right: 16px;
-      width: 52px; height: 52px; border-radius: 50%;
-      background: linear-gradient(135deg, #0ea5e9, #6366f1);
-      color: #fff; font-size: 1.5rem;
-      border: none; cursor: pointer;
-      box-shadow: 0 4px 18px rgba(14,165,233,0.5);
-      display: flex; align-items: center; justify-content: center;
+    /* Scanner pull-out drawer */
+    #scan-drawer {
+      position: fixed; bottom: 200px; right: 0;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
       z-index: 160;
+      display: flex; align-items: center;
+    }
+    #scan-drawer.open { transform: translateX(0); }
+    #scan-drawer-tab {
+      position: absolute; left: -36px; top: 50%;
+      transform: translateY(-50%);
+      width: 36px; height: 72px;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      border-radius: 12px 0 0 12px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 1.3rem;
+      box-shadow: -4px 0 16px rgba(14,165,233,0.4);
+      border: none; color: #fff;
       -webkit-tap-highlight-color: transparent;
     }
-    #scan-fab:active { transform: scale(0.93); }
+    #scan-drawer-panel {
+      background: #1e293b;
+      border-radius: 16px 0 0 16px;
+      padding: 12px 14px;
+      display: flex; flex-direction: row; align-items: center; gap: 10px;
+      box-shadow: -6px 0 24px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    .scan-bubble {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      background: #0f172a; border-radius: 14px; padding: 10px 12px;
+      cursor: pointer; border: none; color: #e2e8f0;
+      font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s;
+    }
+    .scan-bubble:active { background: #334155; }
+    .scan-bubble .bubble-icon { font-size: 1.5rem; }
 
     /* Scanner modal */
     #scan-modal {
@@ -345,60 +376,68 @@
   <!-- Due soon alerts -->
   <div id="due-alerts" style="margin-bottom:16px"></div>
 
-  <div class="split">
-    <!-- SPENDING -->
-    <div>
-      <div class="panel-title">🧾 Monthly Bills</div>
-      <div class="form-card">
-        <div class="form-row">
-          <input id="sp-name" type="text" placeholder="Bill name"/>
-          <input id="sp-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
-          <input id="sp-due" type="date" title="Due date"/>
-          <textarea id="sp-note" placeholder="Note (optional)" rows="2"></textarea>
-          <select id="sp-plan-toggle" onchange="togglePlanFields()" style="font-size:16px">
-            <option value="">No plan</option>
-            <option value="payment">Payment Plan</option>
-            <option value="split">Split Pay</option>
-          </select>
-          <div id="sp-plan-fields" style="display:none;flex-direction:column;gap:8px">
-            <input id="sp-plan-payment" type="number" placeholder="Amount per installment" min="0" step="0.01"/>
-            <select id="sp-plan-freq">
-              <option value="monthly">Monthly</option>
-              <option value="biweekly">Bi-Weekly</option>
-              <option value="weekly">Weekly</option>
-            </select>
-            <input id="sp-plan-start" type="date" title="First payment date"/>
-          </div>
-          <button class="btn-spending" onclick="addSpending()">+ Add Bill</button>
-        </div>
-        <div class="section-header" style="margin-top:14px">
-          <button class="cal-toggle btn-spending" onclick="toggleList('bills')" style="flex:1;margin-right:8px;padding:10px 12px">
-            <span id="bills-list-label">Bills (0)</span><span id="bills-list-arrow">▼</span>
-          </button>
-          <button class="clear-btn" onclick="clearSpending()">Clear All</button>
-        </div>
-        <div id="spending-list" class="tx-list" style="display:none"></div>
-      </div>
-    </div>
+  <!-- Bills / Income dropdown tab selector -->
+  <div style="display:flex;gap:10px;margin-bottom:14px">
+    <button id="tab-bills-btn" onclick="showMoneyPanel('bills')"
+      style="flex:1;padding:12px;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;border:none;background:#7f1d1d;color:#fca5a5;transition:background 0.2s">
+      🧾 Monthly Bills
+    </button>
+    <button id="tab-income-btn" onclick="showMoneyPanel('income')"
+      style="flex:1;padding:12px;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;border:none;background:#1e293b;color:#94a3b8;transition:background 0.2s">
+      💰 Bi-Weekly Income
+    </button>
+  </div>
 
-    <!-- SAVING -->
-    <div>
-      <div class="panel-title">💰 Bi-Weekly Income</div>
-      <div class="form-card">
-        <div class="form-row">
-          <input id="sv-job" type="text" placeholder="Income source"/>
-          <input id="sv-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
-          <textarea id="sv-note" placeholder="Note (optional)" rows="2"></textarea>
-          <button class="btn-saving" onclick="addSaving()">+ Add Income</button>
+  <!-- SPENDING panel -->
+  <div id="panel-bills">
+    <div class="form-card">
+      <div class="form-row">
+        <input id="sp-name" type="text" placeholder="Bill name"/>
+        <input id="sp-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
+        <input id="sp-due" type="date" title="Due date"/>
+        <textarea id="sp-note" placeholder="Note (optional)" rows="2"></textarea>
+        <select id="sp-plan-toggle" onchange="togglePlanFields()" style="font-size:16px">
+          <option value="">No plan</option>
+          <option value="payment">Payment Plan</option>
+          <option value="split">Split Pay</option>
+        </select>
+        <div id="sp-plan-fields" style="display:none;flex-direction:column;gap:8px">
+          <input id="sp-plan-payment" type="number" placeholder="Amount per installment" min="0" step="0.01"/>
+          <select id="sp-plan-freq">
+            <option value="monthly">Monthly</option>
+            <option value="biweekly">Bi-Weekly</option>
+            <option value="weekly">Weekly</option>
+          </select>
+          <input id="sp-plan-start" type="date" title="First payment date"/>
         </div>
-        <div class="section-header" style="margin-top:14px">
-          <button class="cal-toggle btn-saving" onclick="toggleList('income')" style="flex:1;margin-right:8px;padding:10px 12px">
-            <span id="income-list-label">Income (0)</span><span id="income-list-arrow">▼</span>
-          </button>
-          <button class="clear-btn" onclick="clearSaving()">Clear All</button>
-        </div>
-        <div id="saving-list" class="tx-list" style="display:none"></div>
+        <button class="btn-spending" onclick="addSpending()">+ Add Bill</button>
       </div>
+      <div class="section-header" style="margin-top:14px">
+        <button class="cal-toggle btn-spending" onclick="toggleList('bills')" style="flex:1;margin-right:8px;padding:10px 12px">
+          <span id="bills-list-label">Bills (0)</span><span id="bills-list-arrow">▼</span>
+        </button>
+        <button class="clear-btn" onclick="clearSpending()">Clear All</button>
+      </div>
+      <div id="spending-list" class="tx-list" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- SAVING panel -->
+  <div id="panel-income" style="display:none">
+    <div class="form-card">
+      <div class="form-row">
+        <input id="sv-job" type="text" placeholder="Income source"/>
+        <input id="sv-amount" type="number" placeholder="Amount" min="0" step="0.01"/>
+        <textarea id="sv-note" placeholder="Note (optional)" rows="2"></textarea>
+        <button class="btn-saving" onclick="addSaving()">+ Add Income</button>
+      </div>
+      <div class="section-header" style="margin-top:14px">
+        <button class="cal-toggle btn-saving" onclick="toggleList('income')" style="flex:1;margin-right:8px;padding:10px 12px">
+          <span id="income-list-label">Income (0)</span><span id="income-list-arrow">▼</span>
+        </button>
+        <button class="clear-btn" onclick="clearSaving()">Clear All</button>
+      </div>
+      <div id="saving-list" class="tx-list" style="display:none"></div>
     </div>
   </div>
 
@@ -562,9 +601,22 @@
     </div>
   </div>
 
-  <!-- Scanner FAB bubble (top-right) -->
-  <button id="scan-fab" title="Scan Pay Stub">📷</button>
-  <div id="scan-fab-badge" style="display:none;position:fixed;top:12px;right:12px;background:#f59e0b;color:#000;font-size:0.55rem;font-weight:800;border-radius:99px;padding:2px 5px;z-index:161;pointer-events:none">IN</div>
+  <!-- Scanner pull-out drawer -->
+  <div id="scan-drawer">
+    <button id="scan-drawer-tab" onclick="toggleScanDrawer()" title="Receipt Scanner">📷</button>
+    <div id="scan-drawer-panel">
+      <div id="scan-fab-badge" style="display:none;position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#000;font-size:0.6rem;font-weight:800;border-radius:8px;padding:2px 8px;white-space:nowrap">⏳ Clock-In Pending</div>
+      <button class="scan-bubble" onclick="openScanModal();toggleScanDrawer()">
+        <span class="bubble-icon">📷</span>Picture
+      </button>
+      <button class="scan-bubble" onclick="openStubs();toggleScanDrawer()">
+        <span class="bubble-icon">🧾</span>History
+      </button>
+      <button class="scan-bubble" onclick="openAddFromDrawer();toggleScanDrawer()">
+        <span class="bubble-icon">➕</span>Add
+      </button>
+    </div>
+  </div>
   <input id="scan-file-input" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleScanFile(this)"/>
 
   <!-- Scanner modal (single tap) -->
@@ -587,34 +639,32 @@
       <!-- Result fields -->
       <div id="scan-modal-result" style="display:none;flex-direction:column;gap:10px">
         <div style="font-size:0.75rem;color:#64748b;font-weight:600">Detected — review &amp; adjust:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div>
-            <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Date</div>
-            <input id="sm-date" type="date" style="font-size:16px"/>
-          </div>
-          <div>
-            <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Time</div>
-            <input id="sm-time" type="time" style="font-size:16px"/>
-          </div>
-        </div>
-        <!-- Clock-out extra fields (shown only when completing a pair) -->
-        <div id="sm-pair-fields" style="display:none;flex-direction:column;gap:8px">
-          <div style="background:#0f172a;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#94a3b8">
-            Clock-in: <strong id="sm-pair-in-label" style="color:#4ade80"></strong>
-          </div>
+        <!-- Clock-IN row -->
+        <div style="background:#0f172a;border-radius:10px;padding:10px 12px">
+          <div style="font-size:0.7rem;color:#4ade80;font-weight:700;margin-bottom:6px">🟢 Clock-In</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Hours</div><input id="sm-hours" type="number" min="0" step="0.25" style="font-size:16px" placeholder="auto"/></div>
-            <div>
-              <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Rate ($/hr)</div>
-              <input id="sm-rate" type="number" min="0" step="0.01" style="font-size:16px" oninput="saveScanRate()"/>
-            </div>
-          </div>
-          <div style="background:#0f172a;border-radius:8px;padding:10px;text-align:center">
-            <div style="font-size:0.7rem;color:#64748b;margin-bottom:2px">Estimated Pay</div>
-            <div id="sm-est" style="font-size:1.4rem;font-weight:800;color:#4ade80">$0.00</div>
+            <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Date</div><input id="sm-in-date" type="date" style="font-size:16px"/></div>
+            <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Time</div><input id="sm-in-time" type="time" style="font-size:16px"/></div>
           </div>
         </div>
-        <div id="sm-action-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <!-- Clock-OUT row -->
+        <div style="background:#0f172a;border-radius:10px;padding:10px 12px">
+          <div style="font-size:0.7rem;color:#f87171;font-weight:700;margin-bottom:6px">🔴 Clock-Out</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Date</div><input id="sm-out-date" type="date" style="font-size:16px"/></div>
+            <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Time</div><input id="sm-out-time" type="time" style="font-size:16px"/></div>
+          </div>
+        </div>
+        <!-- Hours / Rate / Pay -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Hours</div><input id="sm-hours" type="number" min="0" step="0.25" style="font-size:16px" placeholder="auto" oninput="updateScanEst()"/></div>
+          <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Rate ($/hr)</div><input id="sm-rate" type="number" min="0" step="0.01" style="font-size:16px" oninput="saveScanRate()"/></div>
+        </div>
+        <div style="background:#0f172a;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:0.7rem;color:#64748b;margin-bottom:2px">Estimated Pay</div>
+          <div id="sm-est" style="font-size:1.4rem;font-weight:800;color:#4ade80">$0.00</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <button id="sm-save-btn" onclick="saveScanTime()" style="background:#166534;color:#4ade80;padding:12px">💾 Save</button>
           <button onclick="closeScanModal()" style="background:#334155;color:#94a3b8;padding:12px">Cancel</button>
         </div>
@@ -710,6 +760,16 @@
       const el = document.getElementById('combined-total');
       el.textContent = (net < 0 ? '-' : '') + fmt(net);
       el.style.color = net < 0 ? '#f87171' : '#4ade80';
+    }
+
+    function showMoneyPanel(which) {
+      const isBills = which === 'bills';
+      document.getElementById('panel-bills').style.display  = isBills ? '' : 'none';
+      document.getElementById('panel-income').style.display = isBills ? 'none' : '';
+      document.getElementById('tab-bills-btn').style.background  = isBills ? '#7f1d1d' : '#1e293b';
+      document.getElementById('tab-bills-btn').style.color       = isBills ? '#fca5a5' : '#94a3b8';
+      document.getElementById('tab-income-btn').style.background = isBills ? '#1e293b' : '#14532d';
+      document.getElementById('tab-income-btn').style.color      = isBills ? '#94a3b8' : '#86efac';
     }
 
     function toggleList(which) {
@@ -1327,20 +1387,25 @@
       return r;
     }
 
-    // --- SCAN FAB (single tap = camera, double tap = stubs manager) ---
+    // --- SCAN DRAWER ---
     let stubs = JSON.parse(localStorage.getItem('mt_stubs') || '[]');
-    let scanFabTapTimer = null;
 
-    document.getElementById('scan-fab').addEventListener('click', () => {
-      if (scanFabTapTimer) {
-        clearTimeout(scanFabTapTimer);
-        scanFabTapTimer = null;
-        openStubs();
-      } else {
-        scanFabTapTimer = setTimeout(() => {
-          scanFabTapTimer = null;
-          openScanModal();
-        }, 280);
+    function toggleScanDrawer() {
+      document.getElementById('scan-drawer').classList.toggle('open');
+    }
+    function openAddFromDrawer() {
+      showTab('money');
+      const billsVisible = document.getElementById('panel-income').style.display === 'none';
+      setTimeout(() => {
+        const el = document.getElementById(billsVisible ? 'sp-name' : 'sv-job');
+        if (el) el.focus();
+      }, 100);
+    }
+    // Close drawer when tapping outside
+    document.addEventListener('click', e => {
+      const drawer = document.getElementById('scan-drawer');
+      if (drawer.classList.contains('open') && !drawer.contains(e.target)) {
+        drawer.classList.remove('open');
       }
     });
 
@@ -1360,12 +1425,11 @@
 
     function openScanModal() {
       const p = getPending();
-      document.getElementById('scan-modal-title').textContent = p ? '📷 Scan Clock-Out' : '📷 Scan Clock-In';
+      document.getElementById('scan-modal-title').textContent = '📷 Scan Receipt';
       document.getElementById('scan-modal-empty').style.display = 'flex';
       document.getElementById('scan-modal-result').style.display = 'none';
       document.getElementById('scan-modal-preview').style.display = 'none';
       document.getElementById('scan-modal-status').style.display = 'none';
-      // show pending banner if clock-in is waiting
       const banner = document.getElementById('scan-pending-banner');
       if (p) {
         banner.style.display = 'block';
@@ -1395,7 +1459,6 @@
       const r = parseFloat(document.getElementById('sm-rate').value) || 0;
       document.getElementById('sm-est').textContent = '$' + (h * r).toFixed(2);
     }
-    document.getElementById('sm-hours').addEventListener('input', updateScanEst);
     document.getElementById('sm-rate').addEventListener('input', updateScanEst);
 
     function handleScanFile(input) {
@@ -1424,55 +1487,88 @@
           parseScanText(text);
         } catch(e) {
           status.textContent = '❌ Could not read. Try a clearer photo.';
-          showScanResult('', '');
+          showScanResult('', '', '', '');
         }
       });
     }
 
     function parseScanText(raw) {
-      // Normalize: collapse whitespace, uppercase for matching
       const text = raw.replace(/\s+/g, ' ');
 
-      // --- TIME: match "8:30 AM", "08:30", "8:30AM", "8.30 AM", "8 30 AM" ---
-      const timeRe = /\b(\d{1,2})[:.\s](\d{2})\s*([AaPp][Mm])?\b/g;
-      const allTimes = [];
-      let tm;
-      while ((tm = timeRe.exec(text)) !== null) {
-        const h = parseInt(tm[1]), m = tm[2], ap = (tm[3]||'').toUpperCase();
-        if (h > 23 || parseInt(m) > 59) continue;
-        allTimes.push({ h, m, ap, raw: tm[0] });
-      }
-      // Pick the most likely single time (first one found, or labeled)
-      let detectedTime = '';
-      // Look for labeled time: "IN 8:30", "Clock In: 8:30", "Time: 8:30"
-      const labeledRe = /(?:clock\s*in|time\s*in|in\s*time|punch\s*in|start|time)[:\s]+(\d{1,2})[:.\s](\d{2})\s*([AaPp][Mm])?/i;
-      const lm = text.match(labeledRe);
-      if (lm) {
-        detectedTime = buildTime24(parseInt(lm[1]), lm[2], (lm[3]||'').toUpperCase());
-      } else if (allTimes.length > 0) {
-        const t = allTimes[0];
-        detectedTime = buildTime24(t.h, t.m, t.ap);
-      }
-
-      // --- DATE: MM/DD/YYYY, MM-DD-YYYY, Month DD YYYY, YYYY-MM-DD ---
-      let detectedDate = '';
-      const d1 = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
-      const d2 = text.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})\b/i);
-      const d3 = text.match(/\b(\d{4})[\/\-](\d{2})[\/\-](\d{2})\b/);
-      if (d1) {
-        let [, mo, dy, yr] = d1;
-        if (yr.length === 2) yr = '20' + yr;
-        detectedDate = `${yr}-${mo.padStart(2,'0')}-${dy.padStart(2,'0')}`;
-      } else if (d2) {
+      // --- Extract ALL dates ---
+      function extractDates(t) {
+        const results = [];
+        const r1 = /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/g;
+        const r2 = /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})\b/gi;
+        const r3 = /\b(\d{4})[\/\-](\d{2})[\/\-](\d{2})\b/g;
         const months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
-        const mo = months[d2[1].toLowerCase().slice(0,3)];
-        detectedDate = `${d2[3]}-${mo}-${d2[2].padStart(2,'0')}`;
-      } else if (d3) {
-        detectedDate = `${d3[1]}-${d3[2]}-${d3[3]}`;
+        let m;
+        while ((m = r1.exec(t)) !== null) {
+          let [,mo,dy,yr] = m; if (yr.length===2) yr='20'+yr;
+          results.push({ str:`${yr}-${mo.padStart(2,'0')}-${dy.padStart(2,'0')}`, idx: m.index });
+        }
+        while ((m = r2.exec(t)) !== null) {
+          const mo = months[m[1].toLowerCase().slice(0,3)];
+          results.push({ str:`${m[3]}-${mo}-${m[2].padStart(2,'0')}`, idx: m.index });
+        }
+        while ((m = r3.exec(t)) !== null) {
+          results.push({ str:`${m[1]}-${m[2]}-${m[3]}`, idx: m.index });
+        }
+        results.sort((a,b) => a.idx - b.idx);
+        return results;
       }
-      if (!detectedDate) detectedDate = new Date().toISOString().slice(0,10);
 
-      showScanResult(detectedDate, detectedTime);
+      // --- Extract ALL times with their position and label context ---
+      function extractTimes(t) {
+        const results = [];
+        const re = /\b(\d{1,2})[:.](\d{2})\s*([AaPp][Mm])?\b/g;
+        let m;
+        while ((m = re.exec(t)) !== null) {
+          const h = parseInt(m[1]), min = m[2], ap = (m[3]||'').toUpperCase();
+          if (h > 23 || parseInt(min) > 59) continue;
+          // grab up to 20 chars before for label context
+          const before = t.slice(Math.max(0, m.index-25), m.index).toLowerCase();
+          results.push({ h, min, ap, before, idx: m.index, raw: m[0] });
+        }
+        return results;
+      }
+
+      const allDates = extractDates(text);
+      const allTimes = extractTimes(text);
+
+      // Label keywords
+      const inKeywords  = /clock[\s\-]?in|time[\s\-]?in|in[\s\-]?time|punch[\s\-]?in|start|begin|in\b/;
+      const outKeywords = /clock[\s\-]?out|time[\s\-]?out|out[\s\-]?time|punch[\s\-]?out|end|finish|out\b/;
+
+      let inTime='', outTime='', inDate='', outDate='';
+
+      // Try to find labeled in/out times
+      for (const t of allTimes) {
+        const t24 = buildTime24(t.h, t.min, t.ap);
+        if (!inTime  && inKeywords.test(t.before))  inTime  = t24;
+        if (!outTime && outKeywords.test(t.before)) outTime = t24;
+      }
+
+      // Fallback: if we have 2+ times and no labels, first = in, second = out
+      if (!inTime && !outTime && allTimes.length >= 2) {
+        inTime  = buildTime24(allTimes[0].h, allTimes[0].min, allTimes[0].ap);
+        outTime = buildTime24(allTimes[1].h, allTimes[1].min, allTimes[1].ap);
+      } else if (!inTime && allTimes.length >= 1) {
+        inTime = buildTime24(allTimes[0].h, allTimes[0].min, allTimes[0].ap);
+      }
+
+      // Dates: if 2 dates found use first=in, second=out; else same date for both
+      const todayStr = new Date().toISOString().slice(0,10);
+      if (allDates.length >= 2) {
+        inDate  = allDates[0].str;
+        outDate = allDates[1].str;
+      } else if (allDates.length === 1) {
+        inDate = outDate = allDates[0].str;
+      } else {
+        inDate = outDate = todayStr;
+      }
+
+      showScanResult(inDate, inTime, outDate, outTime);
     }
 
     function buildTime24(h, m, ap) {
@@ -1481,33 +1577,24 @@
       return `${String(h).padStart(2,'0')}:${m}`;
     }
 
-    function showScanResult(date, time) {
-      document.getElementById('sm-date').value = date;
-      document.getElementById('sm-time').value = time;
-      const p = getPending();
-      const pairFields = document.getElementById('sm-pair-fields');
-      const saveBtn = document.getElementById('sm-save-btn');
-      if (p) {
-        // clock-out scan — show pair info and hours calc
-        pairFields.style.display = 'flex';
-        document.getElementById('sm-pair-in-label').textContent = `${p.date}  ${p.time}`;
-        // auto-calc hours if both times known
-        if (p.time && time) {
-          const inM = timeStrToMins(p.time), outM = timeStrToMins(time);
-          if (inM !== null && outM !== null) {
-            let diff = outM - inM;
-            if (diff <= 0) diff += 24 * 60;
-            document.getElementById('sm-hours').value = (diff / 60).toFixed(2);
-          }
+    function showScanResult(inDate, inTime, outDate, outTime) {
+      document.getElementById('sm-in-date').value  = inDate;
+      document.getElementById('sm-in-time').value  = inTime;
+      document.getElementById('sm-out-date').value = outDate;
+      document.getElementById('sm-out-time').value = outTime;
+
+      // Auto-calc hours if both times present
+      if (inTime && outTime) {
+        const inM = timeStrToMins(inTime), outM = timeStrToMins(outTime);
+        if (inM !== null && outM !== null) {
+          let diff = outM - inM;
+          if (diff <= 0) diff += 24 * 60;
+          document.getElementById('sm-hours').value = (diff / 60).toFixed(2);
         }
-        updateScanEst();
-        saveBtn.textContent = '💾 Save Full Entry';
-        saveBtn.style.background = '#166534';
-      } else {
-        pairFields.style.display = 'none';
-        saveBtn.textContent = '💾 Save Clock-In';
-        saveBtn.style.background = '#0ea5e9';
       }
+      const r = localStorage.getItem('mt_pay_rate');
+      if (r) document.getElementById('sm-rate').value = r;
+      updateScanEst();
       document.getElementById('scan-modal-result').style.display = 'flex';
     }
 
@@ -1518,40 +1605,33 @@
     }
 
     function saveScanTime() {
-      const date = document.getElementById('sm-date').value || new Date().toISOString().slice(0,10);
-      const time = document.getElementById('sm-time').value;
-      const p = getPending();
+      const inDate  = document.getElementById('sm-in-date').value  || new Date().toISOString().slice(0,10);
+      const inTime  = document.getElementById('sm-in-time').value;
+      const outDate = document.getElementById('sm-out-date').value || inDate;
+      const outTime = document.getElementById('sm-out-time').value;
+      const h       = parseFloat(document.getElementById('sm-hours').value) || 0;
+      const rate    = parseFloat(document.getElementById('sm-rate').value) || 0;
+      const pay     = parseFloat((h * rate).toFixed(2));
 
-      if (p) {
-        // Complete the entry: save full stub
-        const h     = parseFloat(document.getElementById('sm-hours').value) || 0;
-        const rate  = parseFloat(document.getElementById('sm-rate').value) || 0;
-        const pay   = parseFloat((h * rate).toFixed(2));
-        const stub  = { id: Date.now(), date, in: p.time, inDate: p.date, out: time, outDate: date, hours: h, rate, pay, source: 'scan' };
-        stubs.unshift(stub);
-        localStorage.setItem('mt_stubs', JSON.stringify(stubs));
-        if (h > 0) {
-          const idx = hours.findIndex(e => e.date === p.date);
-          if (idx !== -1) hours.splice(idx, 1);
-          hours.push({ date: p.date, start: p.time, end: time, h, label: 'Receipt Scan', dayoff: false });
-          hours.sort((a,b) => a.date.localeCompare(b.date));
-          localStorage.setItem('mt_hours', JSON.stringify(hours));
-          renderHours(); renderCal();
-        }
-        if (pay > 0) {
-          saving.push({ desc: `Pay Stub (${p.date})`, amount: pay, note: `${h}h @ $${rate}/hr`, date: today() });
-          localStorage.setItem('mt_saving', JSON.stringify(saving));
-          renderSaving(); renderCombined();
-        }
-        clearPendingClockIn();
-        closeScanModal();
-        alert(`✅ Entry saved!\n${p.date} ${p.time} → ${date} ${time}\n${h}h${pay > 0 ? ' · $' + pay.toFixed(2) : ''}`);
-      } else {
-        // Save clock-in and wait for clock-out
-        setPending({ date, time });
-        closeScanModal();
-        alert(`⏳ Clock-in saved: ${date} ${time}\nScan your clock-out receipt next.`);
+      const stub = { id: Date.now(), date: inDate, in: inTime, inDate, out: outTime, outDate, hours: h, rate, pay, source: 'scan' };
+      stubs.unshift(stub);
+      localStorage.setItem('mt_stubs', JSON.stringify(stubs));
+      if (h > 0) {
+        const idx = hours.findIndex(e => e.date === inDate);
+        if (idx !== -1) hours.splice(idx, 1);
+        hours.push({ date: inDate, start: inTime, end: outTime, h, label: 'Receipt Scan', dayoff: false });
+        hours.sort((a,b) => a.date.localeCompare(b.date));
+        localStorage.setItem('mt_hours', JSON.stringify(hours));
+        renderHours(); renderCal();
       }
+      if (pay > 0) {
+        saving.push({ desc: `Pay Stub (${inDate})`, amount: pay, note: `${h}h @ $${rate}/hr`, date: today() });
+        localStorage.setItem('mt_saving', JSON.stringify(saving));
+        renderSaving(); renderCombined();
+      }
+      clearPendingClockIn();
+      closeScanModal();
+      alert(`✅ Entry saved!\n${inDate} ${inTime} → ${outDate} ${outTime}\n${h}h${pay > 0 ? ' · $' + pay.toFixed(2) : ''}`);
     }
 
     // --- PAY STUB / RECEIPT HISTORY MANAGER ---

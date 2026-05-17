@@ -1,16 +1,24 @@
 {
   "name": "Money Tracker",
-  "short_name": "Money Tracker",
+  "short_name": "Money",
+  "description": "Track your bills, income, and work hours",
   "start_url": "./index.html",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#6366f1",
   "icons": [
     {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ]
 }
