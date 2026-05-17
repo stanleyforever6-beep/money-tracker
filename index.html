@@ -564,51 +564,63 @@
 
   <!-- Scanner FAB bubble (top-right) -->
   <button id="scan-fab" title="Scan Pay Stub">📷</button>
+  <div id="scan-fab-badge" style="display:none;position:fixed;top:12px;right:12px;background:#f59e0b;color:#000;font-size:0.55rem;font-weight:800;border-radius:99px;padding:2px 5px;z-index:161;pointer-events:none">IN</div>
   <input id="scan-file-input" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleScanFile(this)"/>
 
   <!-- Scanner modal (single tap) -->
   <div id="scan-modal">
     <div class="modal-box">
-      <h3>📷 Scan Pay Stub</h3>
+      <h3 id="scan-modal-title">📷 Scan Receipt</h3>
+
+      <!-- Pending clock-in banner -->
+      <div id="scan-pending-banner" style="display:none;background:#451a03;border:1px solid #92400e;border-radius:10px;padding:10px 14px">
+        <div style="font-size:0.7rem;color:#fbbf24;font-weight:700;margin-bottom:2px">⏳ Clock-In Saved</div>
+        <div id="scan-pending-text" style="font-size:0.88rem;color:#e2e8f0"></div>
+        <button onclick="clearPendingClockIn()" style="background:none;border:none;color:#f87171;font-size:0.72rem;cursor:pointer;padding:4px 0;margin-top:4px">✕ Clear</button>
+      </div>
+
       <div id="scan-modal-preview" style="display:none">
-        <img id="scan-modal-img" style="width:100%;border-radius:10px;max-height:180px;object-fit:contain;background:#0f172a"/>
+        <img id="scan-modal-img" style="width:100%;border-radius:10px;max-height:160px;object-fit:contain;background:#0f172a"/>
       </div>
       <div id="scan-modal-status" style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:4px 0;display:none"></div>
+
+      <!-- Result fields -->
       <div id="scan-modal-result" style="display:none;flex-direction:column;gap:10px">
         <div style="font-size:0.75rem;color:#64748b;font-weight:600">Detected — review &amp; adjust:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div>
-            <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Clock In</div>
-            <input id="sm-in" type="time" style="font-size:16px"/>
-          </div>
-          <div>
-            <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Clock Out</div>
-            <input id="sm-out" type="time" style="font-size:16px"/>
-          </div>
-        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div>
             <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Date</div>
             <input id="sm-date" type="date" style="font-size:16px"/>
           </div>
           <div>
-            <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Hours</div>
-            <input id="sm-hours" type="number" min="0" step="0.25" style="font-size:16px" placeholder="auto"/>
+            <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Time</div>
+            <input id="sm-time" type="time" style="font-size:16px"/>
           </div>
         </div>
-        <div>
-          <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Hourly Rate ($/hr) <span style="color:#4ade80">— saved</span></div>
-          <input id="sm-rate" type="number" min="0" step="0.01" placeholder="e.g. 15.00" style="font-size:16px" oninput="saveScanRate()"/>
+        <!-- Clock-out extra fields (shown only when completing a pair) -->
+        <div id="sm-pair-fields" style="display:none;flex-direction:column;gap:8px">
+          <div style="background:#0f172a;border-radius:8px;padding:8px 12px;font-size:0.78rem;color:#94a3b8">
+            Clock-in: <strong id="sm-pair-in-label" style="color:#4ade80"></strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Hours</div><input id="sm-hours" type="number" min="0" step="0.25" style="font-size:16px" placeholder="auto"/></div>
+            <div>
+              <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Rate ($/hr)</div>
+              <input id="sm-rate" type="number" min="0" step="0.01" style="font-size:16px" oninput="saveScanRate()"/>
+            </div>
+          </div>
+          <div style="background:#0f172a;border-radius:8px;padding:10px;text-align:center">
+            <div style="font-size:0.7rem;color:#64748b;margin-bottom:2px">Estimated Pay</div>
+            <div id="sm-est" style="font-size:1.4rem;font-weight:800;color:#4ade80">$0.00</div>
+          </div>
         </div>
-        <div style="background:#0f172a;border-radius:8px;padding:10px;text-align:center">
-          <div style="font-size:0.7rem;color:#64748b;margin-bottom:2px">Estimated Pay</div>
-          <div id="sm-est" style="font-size:1.4rem;font-weight:800;color:#4ade80">$0.00</div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <button onclick="saveScanStub()" style="background:#166534;color:#4ade80;padding:12px">💾 Save Stub</button>
+        <div id="sm-action-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button id="sm-save-btn" onclick="saveScanTime()" style="background:#166534;color:#4ade80;padding:12px">💾 Save</button>
           <button onclick="closeScanModal()" style="background:#334155;color:#94a3b8;padding:12px">Cancel</button>
         </div>
       </div>
+
+      <!-- Empty state -->
       <div id="scan-modal-empty" style="display:flex;flex-direction:column;gap:10px">
         <button onclick="document.getElementById('scan-file-input').click()" style="background:#0ea5e9;color:#fff;padding:14px;font-size:1rem">📸 Take Photo / Upload</button>
         <button onclick="closeScanModal()" style="background:#334155;color:#94a3b8;padding:12px">Cancel</button>
@@ -616,56 +628,54 @@
     </div>
   </div>
 
-  <!-- Pay Stub Manager (double tap) -->
+  <!-- Pay Stub Manager / Receipt History (double tap) -->
   <div id="stubs-overlay">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
       <button onclick="closeStubs()" style="background:#1e293b;border:none;border-radius:10px;color:#94a3b8;font-size:0.9rem;font-weight:600;padding:10px 16px;cursor:pointer;min-height:44px">✕ Close</button>
-      <h1 style="font-size:1.3rem;font-weight:800;color:#0ea5e9;margin:0">📋 Pay Stubs</h1>
+      <h1 style="font-size:1.3rem;font-weight:800;color:#0ea5e9;margin:0">🧾 Receipt History</h1>
+    </div>
+
+    <!-- Pending clock-in card -->
+    <div id="stubs-pending-card" style="display:none;background:#451a03;border:1px solid #92400e;border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:0.72rem;color:#fbbf24;font-weight:700;margin-bottom:4px">⏳ CLOCK-IN PENDING</div>
+      <div id="stubs-pending-text" style="font-size:0.95rem;color:#e2e8f0;font-weight:600"></div>
+      <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px">Scan your clock-out receipt to complete this entry</div>
+      <button onclick="clearPendingClockIn()" style="background:none;border:1px solid #7f1d1d;color:#f87171;font-size:0.78rem;border-radius:8px;padding:6px 12px;cursor:pointer;margin-top:8px">✕ Clear</button>
+    </div>
+
+    <!-- Summary stats -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <div class="hr-stat"><div class="label">Total Stubs</div><div class="val" id="stubs-count" style="color:#0ea5e9">0</div></div>
+      <div class="hr-stat"><div class="label">Total Hours</div><div class="val" id="stubs-hours" style="color:#a5b4fc">0h</div></div>
+      <div class="hr-stat"><div class="label">Total Pay</div><div class="val" id="stubs-pay" style="color:#4ade80">$0</div></div>
     </div>
 
     <!-- Add stub manually -->
-    <div class="form-card" style="margin-bottom:20px">
-      <div class="panel-title">+ Add Pay Stub</div>
+    <div class="form-card" style="margin-bottom:16px">
+      <div class="panel-title">+ Add Manually</div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div>
-            <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Date</div>
-            <input id="ns-date" type="date" style="font-size:16px"/>
-          </div>
-          <div>
-            <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Hours</div>
-            <input id="ns-hours" type="number" min="0" step="0.25" placeholder="e.g. 8" style="font-size:16px"/>
-          </div>
+          <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Date</div><input id="ns-date" type="date" style="font-size:16px"/></div>
+          <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Hours</div><input id="ns-hours" type="number" min="0" step="0.25" placeholder="e.g. 8" style="font-size:16px"/></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div>
-            <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Clock In</div>
-            <input id="ns-in" type="time" style="font-size:16px"/>
-          </div>
-          <div>
-            <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Clock Out</div>
-            <input id="ns-out" type="time" style="font-size:16px"/>
-          </div>
+          <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Clock In</div><input id="ns-in" type="time" style="font-size:16px"/></div>
+          <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Clock Out</div><input id="ns-out" type="time" style="font-size:16px"/></div>
         </div>
-        <div>
-          <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Pay ($)</div>
-          <input id="ns-pay" type="number" min="0" step="0.01" placeholder="e.g. 120.00" style="font-size:16px"/>
-        </div>
-        <div>
-          <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Note</div>
-          <input id="ns-note" type="text" placeholder="Optional" style="font-size:16px"/>
-        </div>
-        <button onclick="addStub()" style="background:#0ea5e9;color:#fff;padding:13px;font-size:0.95rem">+ Add Stub</button>
+        <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Pay ($)</div><input id="ns-pay" type="number" min="0" step="0.01" placeholder="e.g. 120.00" style="font-size:16px"/></div>
+        <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Note</div><input id="ns-note" type="text" placeholder="Optional" style="font-size:16px"/></div>
+        <button onclick="addStub()" style="background:#0ea5e9;color:#fff;padding:13px;font-size:0.95rem">+ Add</button>
       </div>
     </div>
 
-    <!-- Stubs list -->
+    <!-- Receipt history list -->
+    <div style="font-size:0.85rem;font-weight:700;color:#cbd5e1;margin-bottom:10px">All Receipts</div>
     <div id="stubs-list" class="tx-list"></div>
 
     <!-- Edit stub modal -->
     <div id="stub-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;align-items:flex-end;justify-content:center">
       <div class="modal-box">
-        <h3>✏️ Edit Pay Stub</h3>
+        <h3>✏️ Edit Receipt Entry</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
           <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Date</div><input id="es-date" type="date" style="font-size:16px"/></div>
           <div><div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">Hours</div><input id="es-hours" type="number" min="0" step="0.25" style="font-size:16px"/></div>
@@ -1334,11 +1344,35 @@
       }
     });
 
+    // --- PENDING CLOCK-IN STATE ---
+    function getPending() { return JSON.parse(localStorage.getItem('mt_pending_in') || 'null'); }
+    function setPending(obj) { localStorage.setItem('mt_pending_in', JSON.stringify(obj)); updateFabBadge(); }
+    function clearPendingClockIn() {
+      localStorage.removeItem('mt_pending_in');
+      updateFabBadge();
+      document.getElementById('scan-pending-banner').style.display = 'none';
+      document.getElementById('stubs-pending-card').style.display = 'none';
+    }
+    function updateFabBadge() {
+      const p = getPending();
+      document.getElementById('scan-fab-badge').style.display = p ? 'block' : 'none';
+    }
+
     function openScanModal() {
+      const p = getPending();
+      document.getElementById('scan-modal-title').textContent = p ? '📷 Scan Clock-Out' : '📷 Scan Clock-In';
       document.getElementById('scan-modal-empty').style.display = 'flex';
       document.getElementById('scan-modal-result').style.display = 'none';
       document.getElementById('scan-modal-preview').style.display = 'none';
       document.getElementById('scan-modal-status').style.display = 'none';
+      // show pending banner if clock-in is waiting
+      const banner = document.getElementById('scan-pending-banner');
+      if (p) {
+        banner.style.display = 'block';
+        document.getElementById('scan-pending-text').textContent = `${p.date}  ${p.time}`;
+      } else {
+        banner.style.display = 'none';
+      }
       document.getElementById('scan-modal').classList.add('open');
       const r = localStorage.getItem('mt_pay_rate');
       if (r) document.getElementById('sm-rate').value = r;
@@ -1379,8 +1413,7 @@
         if (window.Tesseract) { cb(); return; }
         const s = document.createElement('script');
         s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-        s.onload = cb;
-        document.head.appendChild(s);
+        s.onload = cb; document.head.appendChild(s);
       };
       loadOCR(async () => {
         try {
@@ -1391,90 +1424,148 @@
           parseScanText(text);
         } catch(e) {
           status.textContent = '❌ Could not read. Try a clearer photo.';
-          document.getElementById('scan-modal-result').style.display = 'flex';
+          showScanResult('', '');
         }
       });
     }
 
-    function parseScanText(text) {
-      // Clock in/out: look for time patterns like "8:30 AM" "17:45"
-      const times = [...text.matchAll(/\b(\d{1,2}:\d{2}(?:\s*[AP]M)?)\b/gi)].map(m => m[1]);
-      if (times.length >= 2) {
-        document.getElementById('sm-in').value  = to24(times[0]);
-        document.getElementById('sm-out').value = to24(times[1]);
-        // calc hours from times
-        const inMins  = toMins(times[0]);
-        const outMins = toMins(times[1]);
-        if (inMins !== null && outMins !== null) {
-          let diff = outMins - inMins;
-          if (diff <= 0) diff += 24 * 60;
-          document.getElementById('sm-hours').value = (diff / 60).toFixed(2);
+    function parseScanText(raw) {
+      // Normalize: collapse whitespace, uppercase for matching
+      const text = raw.replace(/\s+/g, ' ');
+
+      // --- TIME: match "8:30 AM", "08:30", "8:30AM", "8.30 AM", "8 30 AM" ---
+      const timeRe = /\b(\d{1,2})[:.\s](\d{2})\s*([AaPp][Mm])?\b/g;
+      const allTimes = [];
+      let tm;
+      while ((tm = timeRe.exec(text)) !== null) {
+        const h = parseInt(tm[1]), m = tm[2], ap = (tm[3]||'').toUpperCase();
+        if (h > 23 || parseInt(m) > 59) continue;
+        allTimes.push({ h, m, ap, raw: tm[0] });
+      }
+      // Pick the most likely single time (first one found, or labeled)
+      let detectedTime = '';
+      // Look for labeled time: "IN 8:30", "Clock In: 8:30", "Time: 8:30"
+      const labeledRe = /(?:clock\s*in|time\s*in|in\s*time|punch\s*in|start|time)[:\s]+(\d{1,2})[:.\s](\d{2})\s*([AaPp][Mm])?/i;
+      const lm = text.match(labeledRe);
+      if (lm) {
+        detectedTime = buildTime24(parseInt(lm[1]), lm[2], (lm[3]||'').toUpperCase());
+      } else if (allTimes.length > 0) {
+        const t = allTimes[0];
+        detectedTime = buildTime24(t.h, t.m, t.ap);
+      }
+
+      // --- DATE: MM/DD/YYYY, MM-DD-YYYY, Month DD YYYY, YYYY-MM-DD ---
+      let detectedDate = '';
+      const d1 = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
+      const d2 = text.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})\b/i);
+      const d3 = text.match(/\b(\d{4})[\/\-](\d{2})[\/\-](\d{2})\b/);
+      if (d1) {
+        let [, mo, dy, yr] = d1;
+        if (yr.length === 2) yr = '20' + yr;
+        detectedDate = `${yr}-${mo.padStart(2,'0')}-${dy.padStart(2,'0')}`;
+      } else if (d2) {
+        const months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+        const mo = months[d2[1].toLowerCase().slice(0,3)];
+        detectedDate = `${d2[3]}-${mo}-${d2[2].padStart(2,'0')}`;
+      } else if (d3) {
+        detectedDate = `${d3[1]}-${d3[2]}-${d3[3]}`;
+      }
+      if (!detectedDate) detectedDate = new Date().toISOString().slice(0,10);
+
+      showScanResult(detectedDate, detectedTime);
+    }
+
+    function buildTime24(h, m, ap) {
+      if (ap === 'PM' && h < 12) h += 12;
+      if (ap === 'AM' && h === 12) h = 0;
+      return `${String(h).padStart(2,'0')}:${m}`;
+    }
+
+    function showScanResult(date, time) {
+      document.getElementById('sm-date').value = date;
+      document.getElementById('sm-time').value = time;
+      const p = getPending();
+      const pairFields = document.getElementById('sm-pair-fields');
+      const saveBtn = document.getElementById('sm-save-btn');
+      if (p) {
+        // clock-out scan — show pair info and hours calc
+        pairFields.style.display = 'flex';
+        document.getElementById('sm-pair-in-label').textContent = `${p.date}  ${p.time}`;
+        // auto-calc hours if both times known
+        if (p.time && time) {
+          const inM = timeStrToMins(p.time), outM = timeStrToMins(time);
+          if (inM !== null && outM !== null) {
+            let diff = outM - inM;
+            if (diff <= 0) diff += 24 * 60;
+            document.getElementById('sm-hours').value = (diff / 60).toFixed(2);
+          }
         }
+        updateScanEst();
+        saveBtn.textContent = '💾 Save Full Entry';
+        saveBtn.style.background = '#166534';
       } else {
-        // fallback: look for hours number
-        const hm = text.match(/(?:hours?|hrs?)[:\s]*(\d+\.?\d*)/i) || text.match(/(\d+\.?\d*)\s*(?:hours?|hrs?)/i);
-        if (hm) document.getElementById('sm-hours').value = parseFloat(hm[1]);
+        pairFields.style.display = 'none';
+        saveBtn.textContent = '💾 Save Clock-In';
+        saveBtn.style.background = '#0ea5e9';
       }
-      // Date
-      const dm = text.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-      if (dm) {
-        let [, mo, d, y] = dm;
-        if (y.length === 2) y = '20' + y;
-        document.getElementById('sm-date').value = `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
-      }
-      updateScanEst();
       document.getElementById('scan-modal-result').style.display = 'flex';
     }
 
-    function to24(t) {
-      const m = t.match(/(\d{1,2}):(\d{2})\s*([AP]M)?/i);
-      if (!m) return '';
-      let h = parseInt(m[1]), min = m[2], ampm = (m[3]||'').toUpperCase();
-      if (ampm === 'PM' && h < 12) h += 12;
-      if (ampm === 'AM' && h === 12) h = 0;
-      return `${String(h).padStart(2,'0')}:${min}`;
-    }
-    function toMins(t) {
-      const v = to24(t);
-      if (!v) return null;
-      const [h, m] = v.split(':').map(Number);
+    function timeStrToMins(t) {
+      if (!t) return null;
+      const [h, m] = t.split(':').map(Number);
       return h * 60 + m;
     }
 
-    function saveScanStub() {
-      const date  = document.getElementById('sm-date').value || new Date().toISOString().slice(0,10);
-      const inT   = document.getElementById('sm-in').value;
-      const outT  = document.getElementById('sm-out').value;
-      const h     = parseFloat(document.getElementById('sm-hours').value) || 0;
-      const rate  = parseFloat(document.getElementById('sm-rate').value) || 0;
-      const pay   = parseFloat((h * rate).toFixed(2));
-      const stub  = { id: Date.now(), date, in: inT, out: outT, hours: h, rate, pay };
-      stubs.unshift(stub);
-      localStorage.setItem('mt_stubs', JSON.stringify(stubs));
-      // also log to hours tracker
-      if (h > 0) {
-        const idx = hours.findIndex(e => e.date === date);
-        if (idx !== -1) hours.splice(idx, 1);
-        hours.push({ date, start: inT, end: outT, h, label: 'Pay Stub', dayoff: false });
-        hours.sort((a,b) => a.date.localeCompare(b.date));
-        localStorage.setItem('mt_hours', JSON.stringify(hours));
-        renderHours(); renderCal();
+    function saveScanTime() {
+      const date = document.getElementById('sm-date').value || new Date().toISOString().slice(0,10);
+      const time = document.getElementById('sm-time').value;
+      const p = getPending();
+
+      if (p) {
+        // Complete the entry: save full stub
+        const h     = parseFloat(document.getElementById('sm-hours').value) || 0;
+        const rate  = parseFloat(document.getElementById('sm-rate').value) || 0;
+        const pay   = parseFloat((h * rate).toFixed(2));
+        const stub  = { id: Date.now(), date, in: p.time, inDate: p.date, out: time, outDate: date, hours: h, rate, pay, source: 'scan' };
+        stubs.unshift(stub);
+        localStorage.setItem('mt_stubs', JSON.stringify(stubs));
+        if (h > 0) {
+          const idx = hours.findIndex(e => e.date === p.date);
+          if (idx !== -1) hours.splice(idx, 1);
+          hours.push({ date: p.date, start: p.time, end: time, h, label: 'Receipt Scan', dayoff: false });
+          hours.sort((a,b) => a.date.localeCompare(b.date));
+          localStorage.setItem('mt_hours', JSON.stringify(hours));
+          renderHours(); renderCal();
+        }
+        if (pay > 0) {
+          saving.push({ desc: `Pay Stub (${p.date})`, amount: pay, note: `${h}h @ $${rate}/hr`, date: today() });
+          localStorage.setItem('mt_saving', JSON.stringify(saving));
+          renderSaving(); renderCombined();
+        }
+        clearPendingClockIn();
+        closeScanModal();
+        alert(`✅ Entry saved!\n${p.date} ${p.time} → ${date} ${time}\n${h}h${pay > 0 ? ' · $' + pay.toFixed(2) : ''}`);
+      } else {
+        // Save clock-in and wait for clock-out
+        setPending({ date, time });
+        closeScanModal();
+        alert(`⏳ Clock-in saved: ${date} ${time}\nScan your clock-out receipt next.`);
       }
-      // log pay to income if rate set
-      if (pay > 0) {
-        saving.push({ desc: `Pay Stub (${date})`, amount: pay, note: `${h}h @ $${rate}/hr`, date: today() });
-        localStorage.setItem('mt_saving', JSON.stringify(saving));
-        renderSaving(); renderCombined();
-      }
-      closeScanModal();
-      alert(`✅ Saved! ${h}h logged${pay > 0 ? ' · $' + pay.toFixed(2) + ' added to income' : ''}`);
     }
 
-    // --- PAY STUB MANAGER ---
+    // --- PAY STUB / RECEIPT HISTORY MANAGER ---
     function openStubs() {
       renderStubs();
+      const p = getPending();
+      const card = document.getElementById('stubs-pending-card');
+      if (p) {
+        card.style.display = 'block';
+        document.getElementById('stubs-pending-text').textContent = `${p.date}  ${p.time}`;
+      } else {
+        card.style.display = 'none';
+      }
       document.getElementById('stubs-overlay').classList.add('open');
-      // pre-fill today's date
       document.getElementById('ns-date').value = new Date().toISOString().slice(0,10);
     }
     function closeStubs() {
@@ -1482,22 +1573,38 @@
     }
 
     function renderStubs() {
+      const totalH   = stubs.reduce((s,x) => s + (x.hours||0), 0);
+      const totalPay = stubs.reduce((s,x) => s + (x.pay||0), 0);
+      document.getElementById('stubs-count').textContent = stubs.length;
+      document.getElementById('stubs-hours').textContent = totalH.toFixed(1) + 'h';
+      document.getElementById('stubs-pay').textContent   = '$' + totalPay.toFixed(2);
       const list = document.getElementById('stubs-list');
-      if (!stubs.length) { list.innerHTML = '<div class="empty">No pay stubs yet</div>'; return; }
-      list.innerHTML = stubs.map((s, i) => `
-        <div class="tx-item" style="flex-direction:column">
+      if (!stubs.length) { list.innerHTML = '<div class="empty">No receipts scanned yet</div>'; return; }
+      list.innerHTML = stubs.map((s, i) => {
+        const inLabel  = s.inDate  ? `${s.inDate} ${s.in||''}`  : (s.in  || '—');
+        const outLabel = s.outDate ? `${s.outDate} ${s.out||''}` : (s.out || '—');
+        const badge = s.source === 'scan'
+          ? `<span style="font-size:0.6rem;background:#0c4a6e;color:#7dd3fc;border-radius:4px;padding:1px 5px;margin-left:6px">SCAN</span>`
+          : '';
+        return `<div class="tx-item" style="flex-direction:column">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%">
-            <div>
-              <div class="tx-desc">📄 ${s.date}</div>
-              <div class="tx-note">${s.in && s.out ? s.in + ' – ' + s.out + ' · ' : ''}${s.hours}h${s.rate ? ' @ $' + s.rate + '/hr' : ''}</div>
+            <div style="flex:1">
+              <div style="display:flex;align-items:center">
+                <div class="tx-desc">🧾 ${s.date || s.inDate || '—'}</div>${badge}
+              </div>
+              <div class="tx-note">In: ${inLabel}</div>
+              <div class="tx-note">Out: ${outLabel}</div>
+              ${s.hours ? `<div class="tx-note">${s.hours}h${s.rate ? ' @ $'+s.rate+'/hr' : ''}</div>` : ''}
+              ${s.note ? `<div class="tx-note">${s.note}</div>` : ''}
             </div>
             <div style="display:flex;align-items:center;gap:4px">
-              <span class="tx-amount pos">${s.pay > 0 ? '+$' + s.pay.toFixed(2) : s.hours + 'h'}</span>
+              <span class="tx-amount pos">${s.pay > 0 ? '+$'+s.pay.toFixed(2) : (s.hours||0)+'h'}</span>
               <button class="tx-edit" onclick="editStub(${i})">✏️</button>
               <button class="tx-delete" onclick="deleteStub(${i})">✕</button>
             </div>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
 
     function addStub() {
@@ -1508,8 +1615,8 @@
       const pay   = parseFloat(document.getElementById('ns-pay').value) || 0;
       const note  = document.getElementById('ns-note').value.trim();
       if (!h && !pay) return;
-      const rate  = h > 0 && pay > 0 ? parseFloat((pay / h).toFixed(2)) : 0;
-      stubs.unshift({ id: Date.now(), date, in: inT, out: outT, hours: h, rate, pay, note });
+      const rate = h > 0 && pay > 0 ? parseFloat((pay/h).toFixed(2)) : 0;
+      stubs.unshift({ id: Date.now(), date, in: inT, out: outT, hours: h, rate, pay, note, source: 'manual' });
       localStorage.setItem('mt_stubs', JSON.stringify(stubs));
       if (h > 0) {
         const idx = hours.findIndex(e => e.date === date);
@@ -1530,7 +1637,7 @@
     }
 
     function deleteStub(i) {
-      if (!confirm('Delete this pay stub?')) return;
+      if (!confirm('Delete this receipt entry?')) return;
       stubs.splice(i, 1);
       localStorage.setItem('mt_stubs', JSON.stringify(stubs));
       renderStubs();
@@ -1540,7 +1647,7 @@
     function editStub(i) {
       editStubIdx = i;
       const s = stubs[i];
-      document.getElementById('es-date').value  = s.date || '';
+      document.getElementById('es-date').value  = s.date || s.inDate || '';
       document.getElementById('es-in').value    = s.in   || '';
       document.getElementById('es-out').value   = s.out  || '';
       document.getElementById('es-hours').value = s.hours || '';
@@ -1561,7 +1668,7 @@
       s.hours = parseFloat(document.getElementById('es-hours').value) || 0;
       s.pay   = parseFloat(document.getElementById('es-pay').value)   || 0;
       s.note  = document.getElementById('es-note').value.trim();
-      s.rate  = s.hours > 0 && s.pay > 0 ? parseFloat((s.pay / s.hours).toFixed(2)) : s.rate;
+      s.rate  = s.hours > 0 && s.pay > 0 ? parseFloat((s.pay/s.hours).toFixed(2)) : s.rate;
       localStorage.setItem('mt_stubs', JSON.stringify(stubs));
       closeStubEdit();
       renderStubs();
@@ -1574,6 +1681,7 @@
     renderBudget();
     renderDueAlerts();
     loadPayRate(); updateEstPay();
+    updateFabBadge();
     calInit(); navigator.serviceWorker.register('./sw.js');
   </script>
 </body>
