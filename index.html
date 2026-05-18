@@ -607,13 +607,16 @@
     <div id="scan-drawer-panel">
       <div id="scan-fab-badge" style="display:none;position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#f59e0b;color:#000;font-size:0.6rem;font-weight:800;border-radius:8px;padding:2px 8px;white-space:nowrap">⏳ Clock-In Pending</div>
       <button class="scan-bubble" onclick="openScanModal();toggleScanDrawer()">
-        <span class="bubble-icon">📷</span>Picture
+        <span class="bubble-icon">🧾</span>Pay Stub
       </button>
       <button class="scan-bubble" onclick="openStubs();toggleScanDrawer()">
-        <span class="bubble-icon">🧾</span>History
+        <span class="bubble-icon">📋</span>History
       </button>
       <button class="scan-bubble" onclick="openAddFromDrawer();toggleScanDrawer()">
         <span class="bubble-icon">➕</span>Add
+      </button>
+      <button class="scan-bubble" onclick="openSchedule();toggleScanDrawer()">
+        <span class="bubble-icon">📅</span>Schedule
       </button>
     </div>
   </div>
@@ -677,6 +680,31 @@
       </div>
     </div>
   </div>
+
+  <!-- Schedule Upload Modal -->
+  <div id="schedule-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:400;align-items:flex-end;justify-content:center">
+    <div class="modal-box" style="gap:12px">
+      <h3 style="color:#a5b4fc">📅 Upload Schedule</h3>
+      <div id="sched-preview" style="display:none">
+        <img id="sched-img" style="width:100%;border-radius:10px;max-height:200px;object-fit:contain;background:#0f172a"/>
+      </div>
+      <div id="sched-status" style="display:none;font-size:0.82rem;color:#94a3b8;text-align:center;padding:4px 0"></div>
+      <!-- Parsed shifts list -->
+      <div id="sched-result" style="display:none;flex-direction:column;gap:8px;max-height:260px;overflow-y:auto">
+        <div style="font-size:0.75rem;color:#64748b;font-weight:600">Detected shifts — review &amp; adjust:</div>
+        <div id="sched-shifts"></div>
+      </div>
+      <div id="sched-empty" style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="document.getElementById('sched-file-input').click()" style="background:#6366f1;color:#fff;padding:14px;font-size:1rem">📸 Take Photo / Upload Schedule</button>
+        <button onclick="closeSchedule()" style="background:#334155;color:#94a3b8;padding:12px">Cancel</button>
+      </div>
+      <div id="sched-save-row" style="display:none;gap:8px">
+        <button onclick="saveSchedule()" style="flex:1;background:#166534;color:#4ade80;padding:12px">💾 Save All Shifts</button>
+        <button onclick="closeSchedule()" style="flex:1;background:#334155;color:#94a3b8;padding:12px">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <input id="sched-file-input" type="file" accept="image/*" capture="environment" style="display:none" onchange="handleSchedFile(this)"/>
 
   <!-- Pay Stub Manager / Receipt History (double tap) -->
   <div id="stubs-overlay">
@@ -1478,18 +1506,44 @@
         s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
         s.onload = cb; document.head.appendChild(s);
       };
-      loadOCR(async () => {
-        try {
-          const { data: { text } } = await Tesseract.recognize(url, 'eng', {
-            logger: m => { if (m.status === 'recognizing text') status.textContent = `🔍 ${Math.round(m.progress*100)}%`; }
-          });
-          status.textContent = '✅ Review below';
-          parseScanText(text);
-        } catch(e) {
-          status.textContent = '❌ Could not read. Try a clearer photo.';
-          showScanResult('', '', '', '');
-        }
+      // Pre-process image for better OCR accuracy
+      preprocessImage(url, (processedUrl) => {
+        loadOCR(async () => {
+          try {
+            const { data: { text } } = await Tesseract.recognize(processedUrl, 'eng', {
+              tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz/:.- ',
+              logger: m => { if (m.status === 'recognizing text') status.textContent = `🔍 ${Math.round(m.progress*100)}%`; }
+            });
+            status.textContent = '✅ Review below';
+            parseScanText(text);
+          } catch(e) {
+            status.textContent = '❌ Could not read. Try a clearer photo.';
+            showScanResult('', '', '', '');
+          }
+        });
       });
+    }
+
+    // Boost contrast/brightness for better OCR on thermal receipt paper
+    function preprocessImage(url, cb) {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * 2; canvas.height = img.height * 2;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < d.data.length; i += 4) {
+          // grayscale
+          const g = 0.299*d.data[i] + 0.587*d.data[i+1] + 0.114*d.data[i+2];
+          // high contrast threshold — receipt paper is light, ink is dark
+          const v = g < 140 ? 0 : 255;
+          d.data[i] = d.data[i+1] = d.data[i+2] = v;
+        }
+        ctx.putImageData(d, 0, 0);
+        cb(canvas.toDataURL('image/png'));
+      };
+      img.src = url;
     }
 
     function parseScanText(raw) {
@@ -1518,7 +1572,7 @@
         return results;
       }
 
-      // --- Extract ALL times with their position and label context ---
+      // --- Extract ALL times ---
       function extractTimes(t) {
         const results = [];
         const re = /\b(\d{1,2})[:.](\d{2})\s*([AaPp][Mm])?\b/g;
@@ -1526,30 +1580,48 @@
         while ((m = re.exec(t)) !== null) {
           const h = parseInt(m[1]), min = m[2], ap = (m[3]||'').toUpperCase();
           if (h > 23 || parseInt(min) > 59) continue;
-          // grab up to 20 chars before for label context
-          const before = t.slice(Math.max(0, m.index-25), m.index).toLowerCase();
-          results.push({ h, min, ap, before, idx: m.index, raw: m[0] });
+          const before = t.slice(Math.max(0, m.index-35), m.index).toLowerCase();
+          const after  = t.slice(m.index + m[0].length, m.index + m[0].length + 10).toLowerCase();
+          results.push({ h, min, ap, before, after, idx: m.index });
         }
         return results;
+      }
+
+      // --- Extract pay amount ---
+      function extractPay(t) {
+        // Look for labeled total/gross/net pay: "Total $123.45", "Gross Pay: 456.78"
+        const payRe = /(?:gross\s*pay|net\s*pay|total\s*pay|total|amount|pay)[:\s]*\$?\s*(\d{1,6}[.,]\d{2})/gi;
+        let m, best = 0;
+        while ((m = payRe.exec(t)) !== null) {
+          const v = parseFloat(m[1].replace(',','.'));
+          if (v > best) best = v;
+        }
+        // fallback: any dollar amount > $10
+        if (!best) {
+          const anyDollar = /\$\s*(\d{1,6}[.,]\d{2})/g;
+          while ((m = anyDollar.exec(t)) !== null) {
+            const v = parseFloat(m[1].replace(',','.'));
+            if (v > best && v < 99999) best = v;
+          }
+        }
+        return best || 0;
       }
 
       const allDates = extractDates(text);
       const allTimes = extractTimes(text);
 
-      // Label keywords
-      const inKeywords  = /clock[\s\-]?in|time[\s\-]?in|in[\s\-]?time|punch[\s\-]?in|start|begin|in\b/;
-      const outKeywords = /clock[\s\-]?out|time[\s\-]?out|out[\s\-]?time|punch[\s\-]?out|end|finish|out\b/;
+      const inKeywords  = /clock[\s\-]?in|time[\s\-]?in|in[\s\-]?time|punch[\s\-]?in|start|begin|\bin\b/;
+      const outKeywords = /clock[\s\-]?out|time[\s\-]?out|out[\s\-]?time|punch[\s\-]?out|end|finish|\bout\b/;
 
       let inTime='', outTime='', inDate='', outDate='';
 
-      // Try to find labeled in/out times
       for (const t of allTimes) {
         const t24 = buildTime24(t.h, t.min, t.ap);
-        if (!inTime  && inKeywords.test(t.before))  inTime  = t24;
-        if (!outTime && outKeywords.test(t.before)) outTime = t24;
+        const ctx = t.before + t.after;
+        if (!inTime  && inKeywords.test(ctx))  inTime  = t24;
+        if (!outTime && outKeywords.test(ctx)) outTime = t24;
       }
 
-      // Fallback: if we have 2+ times and no labels, first = in, second = out
       if (!inTime && !outTime && allTimes.length >= 2) {
         inTime  = buildTime24(allTimes[0].h, allTimes[0].min, allTimes[0].ap);
         outTime = buildTime24(allTimes[1].h, allTimes[1].min, allTimes[1].ap);
@@ -1557,18 +1629,17 @@
         inTime = buildTime24(allTimes[0].h, allTimes[0].min, allTimes[0].ap);
       }
 
-      // Dates: if 2 dates found use first=in, second=out; else same date for both
       const todayStr = new Date().toISOString().slice(0,10);
       if (allDates.length >= 2) {
-        inDate  = allDates[0].str;
-        outDate = allDates[1].str;
+        inDate = allDates[0].str; outDate = allDates[1].str;
       } else if (allDates.length === 1) {
         inDate = outDate = allDates[0].str;
       } else {
         inDate = outDate = todayStr;
       }
 
-      showScanResult(inDate, inTime, outDate, outTime);
+      const detectedPay = extractPay(text);
+      showScanResult(inDate, inTime, outDate, outTime, detectedPay);
     }
 
     function buildTime24(h, m, ap) {
@@ -1577,13 +1648,12 @@
       return `${String(h).padStart(2,'0')}:${m}`;
     }
 
-    function showScanResult(inDate, inTime, outDate, outTime) {
+    function showScanResult(inDate, inTime, outDate, outTime, detectedPay) {
       document.getElementById('sm-in-date').value  = inDate;
       document.getElementById('sm-in-time').value  = inTime;
       document.getElementById('sm-out-date').value = outDate;
       document.getElementById('sm-out-time').value = outTime;
 
-      // Auto-calc hours if both times present
       if (inTime && outTime) {
         const inM = timeStrToMins(inTime), outM = timeStrToMins(outTime);
         if (inM !== null && outM !== null) {
@@ -1594,8 +1664,152 @@
       }
       const r = localStorage.getItem('mt_pay_rate');
       if (r) document.getElementById('sm-rate').value = r;
-      updateScanEst();
+      // If receipt had a pay amount, pre-fill rate from pay/hours
+      if (detectedPay > 0) {
+        const h = parseFloat(document.getElementById('sm-hours').value) || 0;
+        if (h > 0) document.getElementById('sm-rate').value = (detectedPay / h).toFixed(2);
+        document.getElementById('sm-est').textContent = '$' + detectedPay.toFixed(2);
+      } else {
+        updateScanEst();
+      }
       document.getElementById('scan-modal-result').style.display = 'flex';
+    }
+
+    // --- SCHEDULE ---
+    let parsedShifts = [];
+    function openSchedule() {
+      document.getElementById('schedule-modal').style.display = 'flex';
+      document.getElementById('sched-empty').style.display = 'flex';
+      document.getElementById('sched-result').style.display = 'none';
+      document.getElementById('sched-save-row').style.display = 'none';
+      document.getElementById('sched-preview').style.display = 'none';
+      document.getElementById('sched-status').style.display = 'none';
+    }
+    function closeSchedule() {
+      document.getElementById('schedule-modal').style.display = 'none';
+      document.getElementById('sched-file-input').value = '';
+      parsedShifts = [];
+    }
+
+    function handleSchedFile(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      document.getElementById('sched-img').src = url;
+      document.getElementById('sched-preview').style.display = 'block';
+      document.getElementById('sched-empty').style.display = 'none';
+      const status = document.getElementById('sched-status');
+      status.style.display = 'block';
+      status.textContent = '🔍 Reading schedule…';
+      const loadOCR = (cb) => {
+        if (window.Tesseract) { cb(); return; }
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        s.onload = cb; document.head.appendChild(s);
+      };
+      preprocessImage(url, (processed) => {
+        loadOCR(async () => {
+          try {
+            const { data: { text } } = await Tesseract.recognize(processed, 'eng', {
+              logger: m => { if (m.status === 'recognizing text') status.textContent = `🔍 ${Math.round(m.progress*100)}%`; }
+            });
+            status.textContent = '✅ Review shifts below';
+            parseScheduleText(text);
+          } catch(e) {
+            status.textContent = '❌ Could not read. Try a clearer photo.';
+          }
+        });
+      });
+    }
+
+    function parseScheduleText(raw) {
+      const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean);
+      const months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+      const dayNames = /\b(mon|tue|wed|thu|fri|sat|sun|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i;
+      const dateRe = /\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/;
+      const monthRe = /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})/i;
+      const timeRe  = /\b(\d{1,2})[:.](\d{2})\s*([AaPp][Mm])?\b/g;
+      const yearNow = new Date().getFullYear();
+
+      parsedShifts = [];
+      for (const line of lines) {
+        const times = [];
+        let m;
+        const tr = new RegExp(timeRe.source, 'g');
+        while ((m = tr.exec(line)) !== null) {
+          const h = parseInt(m[1]), min = m[2], ap = (m[3]||'').toUpperCase();
+          if (h > 23 || parseInt(min) > 59) continue;
+          times.push(buildTime24(h, min, ap));
+        }
+        if (times.length < 1) continue; // no times = not a shift line
+
+        // Try to get date from this line
+        let dateStr = '';
+        const dm = line.match(dateRe);
+        const mm2 = line.match(monthRe);
+        if (dm) {
+          const mo = dm[1].padStart(2,'0'), dy = dm[2].padStart(2,'0');
+          const yr = dm[3] ? (dm[3].length===2?'20'+dm[3]:dm[3]) : yearNow;
+          dateStr = `${yr}-${mo}-${dy}`;
+        } else if (mm2) {
+          const mo = months[mm2[1].toLowerCase().slice(0,3)];
+          dateStr = `${yearNow}-${mo}-${mm2[2].padStart(2,'0')}`;
+        } else {
+          // use day name to guess upcoming date
+          const dn = line.match(dayNames);
+          if (dn) {
+            const dayMap = {sun:0,mon:1,tue:2,wed:3,thu:4,fri:5,sat:6,sunday:0,monday:1,tuesday:2,wednesday:3,thursday:4,friday:5,saturday:6};
+            const target = dayMap[dn[1].toLowerCase()];
+            const d = new Date();
+            const diff = (target - d.getDay() + 7) % 7 || 7;
+            d.setDate(d.getDate() + diff);
+            dateStr = d.toISOString().slice(0,10);
+          }
+        }
+        if (!dateStr) continue;
+
+        parsedShifts.push({ date: dateStr, start: times[0], end: times[1] || '' });
+      }
+
+      if (!parsedShifts.length) {
+        document.getElementById('sched-status').textContent = '⚠️ No shifts detected. Try a clearer photo.';
+        return;
+      }
+
+      // Render editable shift rows
+      document.getElementById('sched-shifts').innerHTML = parsedShifts.map((s, i) => `
+        <div style="background:#0f172a;border-radius:10px;padding:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
+          <div><div style="font-size:0.65rem;color:#64748b;margin-bottom:2px">Date</div>
+            <input type="date" value="${s.date}" onchange="parsedShifts[${i}].date=this.value" style="font-size:14px;padding:6px"/></div>
+          <div><div style="font-size:0.65rem;color:#64748b;margin-bottom:2px">Start</div>
+            <input type="time" value="${s.start}" onchange="parsedShifts[${i}].start=this.value" style="font-size:14px;padding:6px"/></div>
+          <div><div style="font-size:0.65rem;color:#64748b;margin-bottom:2px">End</div>
+            <input type="time" value="${s.end}" onchange="parsedShifts[${i}].end=this.value" style="font-size:14px;padding:6px"/></div>
+        </div>`).join('');
+
+      document.getElementById('sched-result').style.display = 'flex';
+      document.getElementById('sched-save-row').style.display = 'flex';
+    }
+
+    function saveSchedule() {
+      let added = 0;
+      parsedShifts.forEach(s => {
+        if (!s.date || !s.start) return;
+        let h = 0;
+        if (s.start && s.end) {
+          const diff = timeStrToMins(s.end) - timeStrToMins(s.start);
+          h = parseFloat(((diff <= 0 ? diff + 1440 : diff) / 60).toFixed(2));
+        }
+        const idx = hours.findIndex(e => e.date === s.date);
+        if (idx !== -1) hours.splice(idx, 1);
+        hours.push({ date: s.date, start: s.start, end: s.end, h, label: 'Schedule', dayoff: false });
+        added++;
+      });
+      hours.sort((a,b) => a.date.localeCompare(b.date));
+      localStorage.setItem('mt_hours', JSON.stringify(hours));
+      renderHours(); renderCal();
+      closeSchedule();
+      alert(`✅ ${added} shift${added!==1?'s':''} added to Hours Tracker!`);
     }
 
     function timeStrToMins(t) {
